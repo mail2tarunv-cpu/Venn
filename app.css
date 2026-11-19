@@ -219,7 +219,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .lg.color { background: var(--amber); } .lg.number { background: var(--accent); } .lg.off { background: var(--dot-off); }
 .map-scroll { overflow-x: auto; padding: 4px 20px 16px; }
 .map { display: flex; min-width: min-content; }
-.map-names { width: 156px; flex: none; display: grid; gap: 10px; padding-top: 32px; }
+.map-names { width: 210px; flex: none; display: grid; gap: 10px; padding-top: 32px; }
 .map-name { height: 28px; line-height: 28px; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 12px; }
 .map-col { flex: 1 1 0; min-width: 72px; display: grid; gap: 10px; padding: 32px 8px 0; position: relative; align-content: start; border-radius: 10px; }
 .map-col.ahead { background: var(--accent-wash); }
@@ -411,7 +411,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .commit-ref .msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .commit-ref .mono { color: var(--ink-3); }
 .select { height: 34px; border: 1px solid var(--line-2); border-radius: var(--r-control); padding: 0 10px; background: var(--card); font: 12.5px var(--sans); color: var(--ink); max-width: 280px; box-shadow: var(--shadow-card); }
-.tokens-grid { margin-top: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.tokens-grid { margin-top: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
 .map-card { margin-bottom: 0; }
 
 @media (max-width: 860px) {

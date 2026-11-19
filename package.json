@@ -2,8 +2,9 @@
   "name": "venn",
   "private": true,
   "scripts": {
+    "build:plugin": "node scripts/build-plugin.cjs",
     "test:tokens": "node tests/tokens.test.cjs",
-    "test:plugin": "node tests/plugin.test.cjs",
+    "test:plugin": "node scripts/build-plugin.cjs --check && node tests/plugin.test.cjs",
     "test:backend": "node tests/backend.test.cjs",
     "test:browser": "python3 tests/test_browser.py",
     "test": "npm run test:tokens && npm run test:plugin && npm run test:backend && npm run test:browser"

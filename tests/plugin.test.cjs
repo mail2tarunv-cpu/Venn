@@ -148,6 +148,13 @@ const statusOf = (rows) => Object.fromEntries(rows.filter((r) => !r.implicit).ma
   assert.match(failed.message, /undone/);
   assert.equal(e.get('radius/card'), undefined, 'created variable removed');
 
+  // Figma names are matched loosely: case, spaces and "." vs "/" do not matter.
+  const g = setup();
+  g.get('radius/button').name = 'Radius.Button';
+  const gc = await g.send({ type: 'init' });
+  assert.equal(gc.rows.find((x) => x.key === 'radius/button').status, 'differs', 'matched despite different spelling');
+  assert.ok(!gc.rows.some((x) => x.status === 'extra' && /radius/i.test(x.name)), 'not reported as an extra variable');
+
   // Record in Venn only opens the Venn site with a receipt.
   const f = setup();
   await f.send({ type: 'open', url: 'https://venn-peach-eight.vercel.app/#receipt=abc' });

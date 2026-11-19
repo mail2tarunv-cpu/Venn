@@ -189,7 +189,7 @@
       <section class="page hidden" id="page-history" aria-labelledby="historyTitle">
         <div class="page-head">
           <div><h1 id="historyTitle">History</h1><p>Updates applied to Figma, with the values the plugin read back</p></div>
-          <label class="button file-button" for="receiptFile"><svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg>Import receipt</label>
+          <label class="button ghost file-button" for="receiptFile" title="For receipts saved as a file from the plugin"><svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg>Import receipt</label>
           <input id="receiptFile" type="file" accept=".json,application/json" hidden />
         </div>
         <div id="historyList" class="history-list"></div>
@@ -209,11 +209,11 @@
 <div class="modal-wrap hidden" id="applyModal" role="dialog" aria-modal="true" aria-labelledby="applyTitle">
   <div class="modal">
     <div class="modal-head"><h2 id="applyTitle">Apply in Figma</h2><button class="icon-button" id="closeModal" type="button" aria-label="Close">×</button></div>
-    <p>The plugin compares your Figma file with the latest commit. Tick what you reviewed and it writes only those values, reads each one back, and gives you a receipt.</p>
+    <p>Venn's Figma plugin shows each value that differs from code. Nothing changes until you pick values and press Apply.</p>
     <ol class="plain-steps">
-      <li>Open your Figma file and run <strong>Venn</strong> from Plugins, Development</li>
-      <li>Review the differences, then press <strong>Apply in Figma</strong></li>
-      <li>Press <strong>Record in Venn</strong> and this page updates</li>
+      <li>In Figma Desktop, open your file and run <strong>Venn</strong> from Plugins, Development. First time? Download the plugin below and import its manifest.</li>
+      <li>Tick the values to update and press <strong>Apply</strong></li>
+      <li>Press <strong>Record in Venn</strong>. This page updates on its own.</li>
     </ol>
     <div class="actions">
       <a class="button" href="figma-plugin.zip" download><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Plugin</a>

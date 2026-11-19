@@ -151,7 +151,8 @@ with sync_playwright() as p:
         page.wait_for_function("document.querySelector('#toast').innerText.includes('different repository')")
         # "Record in Venn": the plugin opens the site with the receipt in the link.
         encoded = base64.urlsafe_b64encode(json.dumps(receipt).encode()).decode().rstrip("=")
-        page.goto(base + "#receipt=" + encoded, wait_until="networkidle")
+        # A fresh page load, exactly like the plugin opening a new browser tab.
+        page.goto(base + "?from=plugin#receipt=" + encoded, wait_until="networkidle")
         page.wait_for_function("document.querySelector('#toast').innerText.includes('Update recorded')")
         assert "#receipt=" not in page.url
         nav(page, "history", narrow)

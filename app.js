@@ -207,7 +207,11 @@ const entryLabel = (key) => { const [name, mode] = key.split('@'); return `${esc
 function renderMap() {
   const t = live.timeline;
   if (!t.length || !live.head) return '';
-  const names = Object.keys(live.head).sort();
+  // Only tokens that changed in the commits shown; a real system has hundreds and most never move.
+  const moved = new Set(t.flatMap((x) => [...x.changed]));
+  const names = Object.keys(live.head).filter((n) => moved.has(n)).sort().slice(0, 40);
+  const hiddenCount = Math.max(0, moved.size - names.length);
+  if (!names.length) return `<div class="card empty"><svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg><h2>No token changed in the last ${plural(t.length, 'commit', 'commits')}</h2><p>The change map shows which push changed which token</p></div>`;
   const syncIdx = t.findIndex((x) => x.commit.sha === workspace.syncedSha);
   const cols = t.map((x, i) => {
     const after = syncIdx !== -1 && i > syncIdx;
@@ -229,8 +233,8 @@ function renderMap() {
   const shown = t.length < live.commits.length ? `Last ${t.length} of ${live.commits.length} commits` : `All ${plural(t.length, 'commit', 'commits')}`;
   return `<div class="card map-card">
     <div class="card-head">
-      <div><h2>Change map</h2><p>${shown} to <span class="mono">${esc(workspace.path)}</span>, oldest on the left</p></div>
-      <div class="legend"><span><i class="lg color"></i>Colour changed</span><span><i class="lg number"></i>Number changed</span><span><i class="lg off"></i>Unchanged</span></div>
+      <div><h2>Change map</h2><p>${plural(names.length, 'token', 'tokens')} that changed across ${shown.toLowerCase()}${hiddenCount ? `, ${hiddenCount} more not shown` : ''}, oldest on the left</p></div>
+      <div class="legend"><span><i class="lg color"></i>Colour</span><span><i class="lg number"></i>Number</span></div>
     </div>
     <div class="map-scroll"><div class="map">
       <div class="map-names">${names.map((n) => `<div class="map-name mono">${entryLabel(n)}</div>`).join('')}<div class="map-x"></div></div>
@@ -249,7 +253,8 @@ function renderInventory(changes) {
     <div class="inv-figure"><span class="big">${entries.length}</span><span class="pill ${changes.length ? 'warn' : 'good'}">${changes.length ? `${changes.length} drifted` : 'All in Figma'}</span></div>
     <div class="split-bar" aria-hidden="true"><span class="seg color" style="flex:${colors / total}"></span><span class="seg number" style="flex:${(total - colors) / total}"></span></div>
     <div class="split-legend"><span><i class="lg color"></i>Colours ${colors}</span><span><i class="lg number"></i>Numbers ${entries.length - colors}</span></div>
-    <ul class="inv-list">${entries.map(([n, t]) => `<li><span class="mono">${entryLabel(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Drifted from Figma"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value, t.alias)}</span></li>`).join('')}</ul>
+    <ul class="inv-list">${entries.map(([n, t], i) => `<li class="${i >= 12 ? 'more-row hidden' : ''}"><span class="mono">${entryLabel(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Drifted from Figma"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value, t.alias)}</span></li>`).join('')}</ul>
+    ${entries.length > 12 ? `<button class="show-more" data-more type="button">Show all ${entries.length}</button>` : ''}
   </div>`;
 }
 
@@ -388,6 +393,12 @@ function renderTokensPage(changes) {
   const root = $('tokensBody');
   if (live.loading || live.error || !live.head) { root.innerHTML = live.error ? `<div class="notice">${esc(live.error)}</div>` : '<div class="skeleton"></div>'; return; }
   root.innerHTML = `${renderMap()}<div class="grid-2 tokens-grid">${renderInventory(changes)}${hasPreviewTokens() ? previewCard() : ''}</div>`;
+  root.querySelectorAll('[data-more]').forEach((btn) => btn.addEventListener('click', () => {
+    const rows = btn.parentElement.querySelectorAll('.more-row');
+    const open = rows[0].classList.contains('hidden');
+    rows.forEach((r) => r.classList.toggle('hidden', !open));
+    btn.textContent = open ? 'Show fewer' : `Show all ${rows.length + 12}`;
+  }));
 }
 
 function renderHistory() {
@@ -477,9 +488,9 @@ async function importReceipt(file) {
   await recordReceipt(JSON.parse(await file.text()));
 }
 /* The plugin's "Record in Venn" opens this page with the receipt in the link: #receipt=<base64url JSON>. */
-async function receiptFromLink() {
-  if (!location.hash.startsWith('#receipt=')) return;
-  const encoded = location.hash.slice('#receipt='.length);
+async function receiptFromLink(hash = location.hash) {
+  if (!hash || !hash.startsWith('#receipt=')) return;
+  const encoded = hash.slice('#receipt='.length);
   history.replaceState(null, '', location.pathname + location.search + '#changes');
   if (!workspace) { toast('Connect your repository first, then record the update again from the plugin.'); return; }
   try {
@@ -563,6 +574,8 @@ function submitFigma(skip) {
 /* ---------- boot ---------- */
 let pollTimer = null;
 function boot() {
+  // Read a receipt from the link before anything rewrites the address (the plugin opens a fresh tab).
+  const pendingReceipt = location.hash.startsWith('#receipt=') ? location.hash : null;
   const params = new URLSearchParams(location.search);
   const showIntro = !workspace && !load(INTRO_KEY, false) && !params.get('repo');
   $('intro').classList.toggle('hidden', !showIntro);
@@ -573,14 +586,14 @@ function boot() {
     $('repoInput').value = params.get('repo') || '';
     $('pathInput').value = params.get('path') || 'tokens.json';
     if (showIntro) showSlide(0); else setStep(1);
-    if (location.hash.startsWith('#receipt=')) receiptFromLink();
+    if (pendingReceipt) receiptFromLink(pendingReceipt);
     return;
   }
   live.loading = true;
   render();
   const hash = location.hash.slice(1);
   showPage(PAGE_NAMES[hash] ? hash : 'changes');
-  refresh({ manual: true }).then(receiptFromLink);
+  refresh({ manual: true }).then(() => receiptFromLink(pendingReceipt));
   pollTimer = setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
 }
 

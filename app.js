@@ -278,7 +278,7 @@ let vennId = 0;
 function vennMark({ drift = 0, animate = false } = {}) {
   const id = 'vm' + (++vennId);
   const r = 44, cx = 120, cy = 60;
-  const d = drift ? 18 + Math.min(drift, 5) * 3 : 8;      // half the distance between centres
+  const d = drift ? 16 + Math.min(drift, 4) * 2 : 8;      // half the distance between centres; the lens always fits two digits
   const state = drift ? 'drift' : 'sync';
   const label = animate ? '' : drift
     ? `<text class="vm-count" x="${cx}" y="${cy + 6}" text-anchor="middle">${drift}</text>`
@@ -340,13 +340,14 @@ function renderDashboard(changes, commits) {
         <div class="card-head"><div><h2>What changed</h2><p>Figma's value next to the value in code. Nothing in Figma moves until you apply it.</p></div></div>
         <div class="table-scroll"><table class="table">
           <thead><tr><th>Token</th><th>Figma</th><th>Code</th><th>Changed in</th></tr></thead>
-          <tbody>${changes.map((c) => `<tr class="change">
+          <tbody>${changes.map((c, i) => `<tr class="change ${i >= 8 ? 'more-row hidden' : ''}">
             <td><div class="token-cell">${vennFor(c)}<span><span class="mono">${esc(c.token || c.name)}</span>${modeTag(c.mode)}<small>${kindLabel(c)}${c.beforeAlias !== c.afterAlias && c.before === c.after ? ' · same colour, new alias' : ''}</small></span></div></td>
             <td class="num from">${formatCell(c.type, c.before, c.beforeAlias)}</td>
             <td class="num to">${formatCell(c.type, c.after, c.afterAlias)}</td>
             <td>${lastTouch(c.name)}</td>
           </tr>`).join('')}</tbody>
         </table></div>
+        ${changes.length > 8 ? `<button class="show-more" id="showMore" type="button">Show all ${changes.length}</button>` : ''}
       </div>`
     : '';
 
@@ -369,6 +370,13 @@ function renderDashboard(changes, commits) {
 
   body.innerHTML = `${banner}${driftTable}${pushes}`;
   if (changes.length) $('applyButton').addEventListener('click', () => openModal());
+  const more = $('showMore');
+  if (more) more.addEventListener('click', () => {
+    const rows = body.querySelectorAll('.more-row');
+    const open = rows[0].classList.contains('hidden');
+    rows.forEach((r) => r.classList.toggle('hidden', !open));
+    more.textContent = open ? 'Show fewer' : `Show all ${changes.length}`;
+  });
   renderTokensPage(changes);
 }
 

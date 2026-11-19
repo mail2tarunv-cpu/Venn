@@ -162,7 +162,8 @@ async function check(config) {
     if (TYPE_MATCH[e.type] !== variable.resolvedType) { rows.push(Object.assign(base, { status: 'type' })); continue; }
     const now = await readMode(variable, modeId);
     if (now.unsupported) { rows.push(Object.assign(base, { status: 'unsupported', id: variable.id })); continue; }
-    const same = now.value === e.value && (now.alias || null) === (e.alias || null);
+    // Same alias target counts as a match; a changed target value is fixed on the target itself.
+    const same = now.alias || e.alias ? (now.alias || null) === (e.alias || null) : now.value === e.value;
     rows.push(Object.assign(base, { id: variable.id, modeId, figma: now.value, figmaAlias: now.alias || null, status: same ? 'match' : 'differs' }));
   }
   // In Figma, not in code: reported only.
@@ -229,7 +230,8 @@ async function apply(keys, confirmed) {
     for (const row of ordered) {
       const variable = byName.get(row.name);
       const back = await readMode(variable, modeIdFor(collection, row.mode));
-      if (back.value !== row.code || (back.alias || null) !== (row.codeAlias || null)) throw Error(`Figma did not confirm ${row.name}${row.mode ? ' (' + row.mode + ')' : ''}.`);
+      const okBack = row.codeAlias ? back.alias === row.codeAlias : back.value === row.code && !back.alias;
+      if (!okBack) throw Error(`Figma did not confirm ${row.name}${row.mode ? ' (' + row.mode + ')' : ''}.`);
       const shown = (alias, value) => (alias ? `{${alias}}` : value);
       if (row.follows) continue;
       changes.push({ name: row.name, mode: row.mode, type: row.type, kind: row.status === 'missing' ? 'created' : 'updated',

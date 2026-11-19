@@ -31,4 +31,8 @@ assert.equal(by['action/primary@Dark'].after, '#0B0B0C');
 assert.equal(by['action/primary@Dark'].mode, 'Dark');
 assert.equal(by.extra.kind, 'added');
 assert.equal(changes.length, 3);
+// Pointing at the same token is not a change, even if that token's own value moved.
+const p1 = flatten({ c: { $type: 'color', n: { $value: '#202020' } }, t: { $type: 'color', $value: '{c.n}' } });
+const p2 = flatten({ c: { $type: 'color', n: { $value: '#18181b' } }, t: { $type: 'color', $value: '{c.n}' } });
+assert.deepEqual(diff(p1, p2).map((x) => x.name), ['c/n']);
 console.log('PASS tokens: colours, dimensions, inherited types, aliases and chains, cycles, modes, alias-aware diff');

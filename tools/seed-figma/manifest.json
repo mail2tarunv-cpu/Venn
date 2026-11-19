@@ -1,0 +1,8 @@
+{
+  "name": "Venn test seed",
+  "id": "1440000000000000002",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"],
+  "enablePrivatePluginApi": true
+}

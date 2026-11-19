@@ -72,7 +72,9 @@
     return out;
   }
 
-  const same = (a, b) => a.type === b.type && a.value === b.value && (a.alias || null) === (b.alias || null);
+  // Two entries agree when they point at the same token, or hold the same plain value. If an alias target's
+  // own value changes, that change is reported on the target, not on everything that points at it.
+  const same = (a, b) => a.type === b.type && (a.alias || b.alias ? (a.alias || null) === (b.alias || null) : a.value === b.value);
 
   /** Differences between two flat maps, sorted by key. */
   function diff(before, after) {

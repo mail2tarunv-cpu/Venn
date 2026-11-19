@@ -461,3 +461,5 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .cell-val { display: inline-flex; align-items: center; }
 .alias { font-family: var(--mono); }
 .map-name .mode-tag { margin-left: 6px; height: 16px; line-height: 14px; font-size: 10px; }
+.show-more { width: 100%; height: 44px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink-2); font: 500 13px var(--sans); border-radius: 0 0 var(--r-card) var(--r-card); }
+.show-more:hover { background: #fcfcfc; color: var(--ink); }

@@ -1,0 +1,33 @@
+{
+  "schema": "design-drift/source-v1",
+  "system": "Penny",
+  "source": {
+    "repository": "mail2tarunv-cpu/Venn",
+    "branch": "main",
+    "file": "source.json",
+    "revision": "penny-radius-2026-11-18",
+    "mode": "published-source-snapshot",
+    "description": "Versioned Penny token snapshot published from Venn. Not a live GitHub webhook."
+  },
+  "target": {
+    "figmaFileKey": "nfPIHqVPJv4OJ5yOavc1ha",
+    "figmaUrl": "https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha",
+    "collection": "Penny / Test tokens",
+    "componentName": "Penny / Button / Primary",
+    "componentNodeId": "1:9"
+  },
+  "changes": [
+    {
+      "id": "penny-primary-radius",
+      "kind": "variable",
+      "name": "radius/button",
+      "label": "Primary button radius",
+      "type": "number",
+      "unit": "px",
+      "expectedBaseline": 2,
+      "proposed": 12,
+      "reason": "Updated the corner radius in the code token source.",
+      "policy": "review-before-apply"
+    }
+  ]
+}

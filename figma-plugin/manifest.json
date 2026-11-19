@@ -1,0 +1,15 @@
+{
+  "name": "Venn — Penny Demo",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma"
+  ],
+  "networkAccess": {
+    "allowedDomains": [
+      "https://design-drift-tarun.vercel.app"
+    ],
+    "reasoning": "Read the Venn published Penny design token snapshot."
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "name": "Venn — Penny Demo",
+  "name": "Venn Sync — Development",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -8,8 +8,9 @@
   ],
   "networkAccess": {
     "allowedDomains": [
+      "https://api.github.com",
       "https://design-drift-tarun.vercel.app"
     ],
-    "reasoning": "Read the Venn published Penny design token snapshot."
+    "reasoning": "Read GitHub during explicit token proposals and exchange signed plugin queue messages with the paired Design Drift backend."
   }
 }

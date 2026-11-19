@@ -1,0 +1,700 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Design Drift — Review code changes</title><meta name="description" content="A GitHub-first experiment for reviewing code changes and preparing Figma maintenance updates."><meta name="theme-color" content="#fffefa"><style>/* Design Drift — change ledger. Deliberately not a clone of Storybook or Chromatic. */
+:root{color-scheme:light;--ink:#25241f;--sub:#65635d;--quiet:#89867e;--line:#e9e5dc;--wash:#f6f4ef;--white:#fffefa;--hover:#f7f5f1;--rust:#b64b31;--rust-dark:#973e2a;--sidebar:222px;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-synthesis:none}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--white);color:var(--ink);-webkit-font-smoothing:antialiased}body{font-size:16px;line-height:1.55}button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #b9a0ff;outline-offset:2px}.hidden{display:none!important}.mdi-icon{width:19px;height:19px;fill:currentColor;display:inline-block;flex-shrink:0;vertical-align:middle}.icon-sm{width:16px;height:16px}.icon-xs{width:14px;height:14px}
+.shell{min-height:100vh;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr)}.sidebar{position:sticky;top:0;height:100vh;background:#f8f7f3;border-right:1px solid #e9e7e0;padding:28px 14px 18px;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:11px;padding:0 12px;font-weight:720;letter-spacing:-.45px;font-size:17px}.brand-logo{display:grid;place-items:center;width:33px;height:33px;line-height:1;background:var(--rust);color:#fff;border-radius:9px;font-weight:800;font-size:25px;letter-spacing:-2px;padding-right:2px}.brand-logo span{color:#f0c9a6}.workspace-label,.section-kicker{font-size:11px;letter-spacing:.10em;font-weight:730;color:#99958c}.workspace-label{padding:0 14px;margin-top:55px;margin-bottom:14px}.nav-wrap{display:grid;gap:5px}.nav-link{width:100%;display:flex;align-items:center;gap:11px;text-align:left;border:0;padding:11px 12px;background:transparent;color:#64625c;border-radius:8px;font-size:14px;font-weight:550}.nav-link:hover{background:#efeee9}.nav-link.active{background:#ebe8e0;color:var(--ink);font-weight:650}.count{margin-left:auto;color:#75716b;font-size:12px;font-weight:650}.sidebar-spacer{flex:1}.side-meta{color:#77736d;font-size:12px;padding:10px 13px;display:flex;gap:9px;align-items:center}.side-meta-dot{width:7px;height:7px;background:#bc935b;border-radius:50%}.side-help{width:100%;display:flex;gap:11px;align-items:center;color:#746f67;background:transparent;border:0;font-size:13px;padding:10px 12px;text-align:left;border-radius:8px}.side-help:hover{background:#efeee9}
+.main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 clamp(24px,5vw,68px);gap:15px}.crumb{font-size:13px;color:#87847d;display:flex;align-items:center;gap:9px}.crumb b{color:#57544f;font-weight:640}.top-note{font-size:12px;color:#9c9993}.page{max-width:1060px;margin:0 auto;padding:64px 55px 100px}.headline{display:flex;justify-content:space-between;gap:24px;align-items:end;margin-bottom:35px}.eyebrow{font-size:11px;font-weight:720;letter-spacing:.14em;color:var(--rust);margin-bottom:14px}.headline h1,.detail-wrap h1{font-size:clamp(34px,3vw,43px);font-weight:735;letter-spacing:-1.65px;line-height:1.15;margin:0 0 11px}.headline p{color:#696660;margin:0;font-size:16px}.button{border:1px solid #dcd7cd;background:#fffefa;border-radius:9px;min-height:43px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:10px 15px;color:#393732;font-size:14px;font-weight:650;white-space:nowrap}.button:hover{background:#f7f5ef;border-color:#ccc6b9}.button.primary{background:#292821;border-color:#292821;color:#fff}.button.primary:hover{background:#434037}.button.quiet{background:transparent;border-color:transparent;color:#67635a}.button.quiet:hover{background:#f2f0e9}.button:disabled{opacity:.6;cursor:wait}.icon-button{border:0;background:transparent;color:#88857c;width:35px;height:35px;display:grid;place-items:center;border-radius:8px}.icon-button:hover{background:#f4f1ea;color:#333}
+.source-strip{display:flex;align-items:center;gap:12px;justify-content:space-between;background:#f7f5f0;border:1px solid #eae7df;padding:15px 17px;border-radius:12px;margin-bottom:46px}.source-inner{display:flex;align-items:center;gap:13px;min-width:0}.source-badge-icon{height:37px;width:37px;background:#fff;border:1px solid #e8e5dc;border-radius:9px;display:grid;place-items:center;color:#696661;flex-shrink:0}.source-text{min-width:0}.source-title{font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source-sub{font-size:12px;color:#89857d;margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.source-mode{display:inline-flex;border:1px solid #e0d9cb;background:#f1ebe1;color:#8b6946;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:600}.source-action{font-size:12px;font-weight:650;color:#736c62;border:none;background:transparent;padding:8px;white-space:nowrap}.source-action:hover{color:var(--ink)}
+.list-top{display:flex;justify-content:space-between;align-items:end;gap:25px;margin-bottom:21px}.section-kicker{margin-bottom:6px}.list-title{margin:0;font-size:22px;font-weight:720;letter-spacing:-.6px}.progress-group{min-width:165px;display:flex;flex-direction:column;gap:9px;align-items:end;color:#8b877f;font-size:12px}.progress-track{width:156px;height:4px;border-radius:4px;background:#e8e4db;overflow:hidden}.progress-fill{background:var(--rust);height:100%;border-radius:4px}.tabs-toolbar{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6e2d9}.tabs{display:flex;align-items:center;gap:25px}.tab{border:0;border-bottom:2px solid transparent;background:transparent;padding:12px 0 14px;color:#918d84;font-size:14px;font-weight:580}.tab.active{border-bottom-color:var(--rust);color:var(--ink);font-weight:700}.tab-number{font-size:12px;color:#97928a;margin-left:4px}.tools{display:flex;align-items:center;gap:3px}.list-search{width:170px;border:1px solid #ddd7cb;border-radius:7px;padding:8px 10px;background:#fff;font-size:13px}.list-wrap,.checklist-list{display:grid}.change-row,.check-row{width:100%;display:flex;gap:17px;align-items:center;text-align:left;min-height:93px;border:0;border-bottom:1px solid #ede9e2;background:transparent;padding:17px 8px 17px 2px}.change-row:hover,.check-row:hover{background:#f8f7f3}.row-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:11px;background:#f4f0e8;color:#8c6b4a;flex-shrink:0}.row-icon .mdi-icon{width:20px;height:20px}.row-main{min-width:0;flex:1}.row-name{display:block;font-weight:690;font-size:16px;line-height:1.35;letter-spacing:-.2px}.row-detail{color:#807b73;font-size:14px;display:block;line-height:1.5;margin-top:4px}.row-meta{color:#a47750;font-size:12px;white-space:nowrap}.row-arrow{color:#a7a198;width:17px;height:17px}.footnote{margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:#99958e}.link-button{font-size:12px;font-weight:630;border:0;background:transparent;color:#8a5b43;padding:7px 0;display:flex;align-items:center;gap:2px}.link-button:hover{color:#553320}
+.back{border:0;background:transparent;display:inline-flex;align-items:center;gap:7px;color:#817c73;font-size:14px;font-weight:620;padding:4px 0;margin-bottom:38px}.back:hover{color:#2d2a25}.back .mdi-icon{transform:rotate(180deg)}.detail-wrap{max-width:740px}.detail-count{font-size:12px;font-weight:720;color:var(--rust);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}.detail-wrap h1{font-size:38px}.detail-sub{font-size:17px;color:#6f6b63;margin:0 0 32px}
+.specimen{border:1px solid #e5e0d5;border-radius:13px;overflow:hidden;margin-bottom:32px}.spec-top{height:47px;background:#f8f6f1;display:flex;align-items:center;justify-content:space-between;padding:0 19px;font-size:13px;font-weight:670;border-bottom:1px solid #e9e5dd}.spec-caveat{font-size:11px;font-weight:520;color:#98928a}.spec-grid{display:grid;grid-template-columns:1fr 1fr}.spec-col+.spec-col{border-left:1px solid #e9e5dd}.spec-label{color:#a19a92;font-size:12px;font-weight:640;padding:12px 19px 0}.spec-stage{min-height:143px;padding:20px;display:grid;place-items:center;overflow:hidden;background:#fffefa}.spec-button{border:0;background:#2c2923;color:#fff;font-size:13px;font-weight:650;padding:11px 24px;min-height:40px}.swatch{width:94px;height:71px;border-radius:11px;box-shadow:0 3px 12px #00000010}.spec-card{width:100%;max-width:230px;display:grid;gap:4px;background:#fff;border-radius:7px;border:1px solid #e5e3dd;box-shadow:0 3px 9px #00000009}.spec-card strong{font-size:13px}.spec-card small{font-size:11px;color:#9a9690}.spec-field{font-size:12px;display:grid;gap:5px;width:95%;max-width:220px;font-weight:630}.spec-field input{width:100%;padding:8px;border:1px solid #d7d3cb;background:#fff;border-radius:6px;color:#7d756f;font-size:12px}.spec-field.spec-error input{border-color:#c56355}.spec-field span{font-size:10px;color:#b54f43;font-weight:500}.spec-caption{font-size:12px;max-width:230px;color:#77716a;margin:0}.behavior-pill{padding:11px 13px;background:#f1eee8;border-radius:7px;font-size:12px;color:#726c65}
+.detail-section{margin-bottom:28px}.detail-label{font-size:12px;font-weight:730;color:#89837b;margin-bottom:12px;letter-spacing:.04em;text-transform:uppercase}.values{display:grid;grid-template-columns:1fr 1fr;gap:11px}.value{padding:17px 20px;border-radius:9px;background:#f8f6f2;border:1px solid #ede9e2}.value-label{color:#928b82;font-size:12px;margin-bottom:8px}.value-text{font-size:20px;font-weight:730;color:#35332e;overflow-wrap:anywhere}.value.after{background:#f5f6f0}.value.after .value-text{color:#4b6652}.figma-target{border:1px solid #e6e2d9;border-radius:10px;display:flex;gap:15px;padding:18px;background:#fff}.figma-target-icon{display:grid;place-items:center;width:37px;height:37px;border-radius:8px;background:#f1ede5;color:#8a6d4d;flex-shrink:0}.figma-name{font-size:16px;font-weight:710}.figma-desc{font-size:13px;color:#777169;margin-top:4px}.figma-caption{font-size:11px;color:#a39e96}.code-disclosure{margin-bottom:32px;border:1px solid #e6e1d7;border-radius:10px;overflow:hidden}.code-disclosure summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:13px 17px;font-size:13px;font-weight:650}.code-disclosure summary::-webkit-details-marker{display:none}.code-disclosure[open] summary .mdi-icon{transform:rotate(90deg)}.code-content{border-top:1px solid #e9e5dd;padding:15px 0;background:#faf9f5}.code-path{padding:0 17px 10px;color:#8c877d;font-size:12px;font-family:ui-monospace,SFMono-Regular,monospace}.code-line{font-size:12px;padding:4px 17px;display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,monospace}.code-line.add{background:#e9f1e6;color:#3d744c}.code-line.del{background:#faeeeb;color:#975c52}.code-line.ctx{color:#76726a}.detail-actions{padding-top:25px;border-top:1px solid #e9e5dc;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.detail-actions .button{min-height:47px;padding:12px 19px;font-size:14px}.action-note{font-size:12px;color:#a19c93;margin-top:13px}.decision-resolved{display:flex;align-items:center;gap:12px;background:#f1f5ed;padding:17px;border-radius:9px;color:#4d654e;font-size:14px;font-weight:620}.decision-resolved.skipped{background:#f5f3ef;color:#77736c}.decision-resolved .button{margin-left:auto}.checklist-list{border-top:1px solid #e9e6df}.check-status{background:#f0ede6;color:#886541;border-radius:5px;padding:5px 9px;font-size:11px;font-weight:650}.check-footnote{font-size:12px;color:#948e84;margin-top:22px}.empty{display:grid;justify-items:center;text-align:center;gap:10px;padding:60px 20px}.empty-icon{width:46px;height:46px;display:grid;place-items:center;background:#f1ede7;border-radius:10px;color:#786452}.empty h3{font-size:19px;margin:10px 0 0}.empty p{font-size:14px;color:#938d85;margin:0 0 8px;max-width:340px}
+.modal-root{display:none;position:fixed;inset:0;z-index:10}.modal-root.open{display:flex;align-items:center;justify-content:center;padding:18px}.overlay{position:absolute;inset:0;background:#1b1916a8}.modal{position:relative;z-index:1;background:#fffefa;width:min(100%,510px);border-radius:14px;padding:27px 28px;box-shadow:0 20px 70px #0002}.modal-header{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:14px}.modal h2{font-size:24px;letter-spacing:-.8px;margin:0}.modal p{font-size:14px;color:#6d6861;margin:0 0 20px}.form-label{display:block;font-size:13px;font-weight:700;color:#777068;margin-bottom:8px}.url-input{width:100%;border:1px solid #d7d0c4;padding:13px;border-radius:8px;background:#fff;font-size:14px}.modal-error{color:#aa3932;font-size:12px;min-height:20px;margin-top:5px}.modal-foot{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-top:18px}.modal-note{font-size:12px;color:#9c958a}.about-step{display:flex;gap:15px;margin-bottom:17px}.about-number{width:26px;height:26px;border:1px solid #e3dfd7;border-radius:50%;display:grid;place-items:center;color:#8d8175;font-size:12px;flex-shrink:0}.about-step b{font-size:14px}.about-step p{font-size:13px;margin:2px 0 0}.about-caution{padding:15px;background:#f6f4ef;border-radius:8px;color:#7e786e;font-size:12px}.toast{position:fixed;bottom:21px;right:22px;z-index:30;background:#292722;color:#fff;border-radius:9px;font-size:13px;padding:12px 17px;box-shadow:0 5px 25px #0003;opacity:0;transform:translateY(9px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:990px){.page{padding:50px 34px 80px}.sidebar{padding:23px 10px}.shell{--sidebar:193px}.top-note{display:none}}
+@media(max-width:750px){.shell{display:block}.sidebar{position:sticky;z-index:5;top:0;height:60px;width:100%;padding:0 20px;align-items:center;flex-direction:row;gap:14px;border-right:0;border-bottom:1px solid var(--line)}.brand{padding:0;font-size:15px}.brand-logo{width:29px;height:29px;font-size:22px}.workspace-label,.sidebar-spacer,.side-meta,.side-help{display:none}.nav-wrap{display:flex;align-items:center;margin-left:auto;gap:2px}.nav-link{width:auto;padding:10px;gap:7px;font-size:12px}.nav-link .count{display:none}.nav-link .mdi-icon{width:16px;height:16px}.main .topbar{display:none}.page{padding:44px 24px 80px}}
+@media(max-width:540px){.page{padding:32px 18px 65px}.brand-name{display:none}.headline{align-items:start;gap:10px;margin-bottom:30px}.headline h1{font-size:33px;letter-spacing:-1.2px}.headline p{font-size:15px}.headline .button{font-size:0;padding:0;width:42px;min-width:42px}.headline .button .mdi-icon{width:19px;height:19px}.source-strip{padding:13px 11px;margin-bottom:37px}.source-badge-icon{width:34px;height:34px}.source-title{font-size:13px}.source-sub{font-size:11px}.source-action{font-size:11px}.list-top{gap:12px}.list-title{font-size:20px}.progress-group{min-width:88px;font-size:11px}.progress-track{width:91px}.tabs{gap:18px}.tab{font-size:13px}.change-row,.check-row{gap:10px;min-height:86px}.row-icon{width:35px;height:35px}.row-name{font-size:15px}.row-detail{font-size:13px}.row-meta{display:none}.footnote{font-size:11px}.detail-wrap h1{font-size:32px}.detail-sub{font-size:15px}.spec-top{padding:0 11px}.spec-caveat{font-size:10px}.spec-grid{grid-template-columns:1fr 1fr}.spec-stage{min-height:125px;padding:10px}.spec-label{padding:10px 11px 0}.spec-button{padding:9px 13px}.value{padding:14px}.value-text{font-size:17px}.detail-actions .button{flex:1}.detail-actions{gap:7px}.modal{padding:20px}.modal-foot{flex-wrap:wrap}.brand-logo{margin-left:2px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;scroll-behavior:auto!important}}
+
+/* Design Drift — code-first product with a restrained, macOS-inspired visual system. */
+:root{--ink:#1d1d1f;--sub:#62636a;--quiet:#8f9198;--line:#e8e8ec;--wash:#f5f5f7;--white:#ffffff;--hover:#f4f5f8;--rust:#007aff;--rust-dark:#0066da;--sidebar-width:244px;--surface:#fff;--blue:#007aff;--blue-soft:#e8f2ff;--sidebar-bg:#f6f6f8;--shadow:0 10px 40px rgba(28,37,57,.07);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Inter,'Segoe UI',sans-serif; font-synthesis:none;color-scheme:light}
+html,body{background:#fff; color:var(--ink);font-family:inherit}
+body{font-size:15px;line-height:1.5}
+.shell{min-height:100vh;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);position:relative;transition:grid-template-columns .3s cubic-bezier(.2,.8,.2,1);background:#fff}
+.shell.is-resizing{transition:none;user-select:none;cursor:col-resize}
+.shell.is-collapsed{--sidebar-width:72px}
+.sidebar{position:sticky;top:0;height:100dvh;min-width:0;padding:17px 11px 16px;display:flex;flex-direction:column;background:var(--sidebar-bg);border-right:1px solid #e5e5ea;overflow:visible;z-index:6;transition:padding .25s ease}
+.sidebar-head{display:flex;align-items:center;justify-content:space-between;min-height:37px;padding:0 2px;margin-bottom:43px;gap:5px;overflow:hidden}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;padding:0 6px;font-weight:670;letter-spacing:-.45px;font-size:15px;white-space:nowrap}
+.brand-name{white-space:nowrap;overflow:hidden;opacity:1;transition:opacity .16s ease}
+.brand-logo{background:#1d1d1f;width:28px;height:28px;min-width:28px;border-radius:8px;color:#fff;font-size:20px;display:grid;place-items:center;letter-spacing:-1.5px;font-weight:720;padding-right:2px}
+.brand-logo span{color:#b8d9ff}
+.sidebar-collapse{height:31px;width:31px;min-width:31px;color:#81838c;background:none;border:none;border-radius:8px;display:grid;place-items:center}
+.sidebar-collapse:hover,.sidebar-toggle-top:hover{background:#e9e9ed;color:#202126}
+.panel-symbol{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.workspace-label{font-size:10px;letter-spacing:.11em;color:#999ba2;font-weight:650;padding:0 12px;margin:0 0 10px;white-space:nowrap}
+.nav-wrap{display:grid;gap:5px}
+.nav-link{position:relative;width:100%;height:41px;min-height:41px;border-radius:9px;display:flex;align-items:center;gap:12px;padding:0 12px;font-size:13.5px;font-weight:560;white-space:nowrap;background:transparent;color:#545761;transition:background .14s ease,color .14s ease}
+.nav-link .mdi-icon{width:19px;height:19px}
+.nav-link:hover{background:#eaeaef;color:#282930}
+.nav-link.active{color:#0865c4;background:#e4edfb;font-weight:625}
+.count{font-size:11.5px;color:#777e89;margin-left:auto;font-weight:650;font-variant-numeric:tabular-nums}
+.nav-link.active .count{color:#3771b7}
+.sidebar-spacer{flex:1}
+.side-meta{display:flex;gap:8px;align-items:center;color:#91939b;font-size:11px;padding:9px 11px;white-space:nowrap}
+.side-meta-dot{background:#84a2c1;width:6px;height:6px}
+.side-help{color:#6d7079;padding:0 11px;border-radius:9px;min-height:41px;display:flex;gap:12px;align-items:center;font-size:13px;white-space:nowrap}
+.side-help:hover{background:#eaeaef}
+.nav-text,.side-meta-text,.help-label{overflow:hidden;text-overflow:ellipsis}
+.shell.is-collapsed .sidebar{padding-left:11px;padding-right:11px}
+.shell.is-collapsed .sidebar-head{justify-content:center;margin-bottom:43px}
+.shell.is-collapsed .brand{padding:0;gap:0}
+.shell.is-collapsed .brand-name,.shell.is-collapsed .sidebar-collapse,.shell.is-collapsed .workspace-label,.shell.is-collapsed .nav-text,.shell.is-collapsed .count,.shell.is-collapsed .side-meta{display:none}
+.shell.is-collapsed .nav-link,.shell.is-collapsed .side-help{width:44px;height:44px;min-height:44px;justify-content:center;gap:0;margin:0 auto;padding:0;border-radius:11px}
+.shell.is-collapsed .side-help .help-label{display:none}
+/* Tooltips render only in icon-only mode, following the attached interaction reference. */
+.shell.is-collapsed .nav-link::after,.shell.is-collapsed .side-help::after{content:attr(data-tooltip);pointer-events:none;position:absolute;left:calc(100% + 14px);top:50%;transform:translate(-4px,-50%);background:#25262b;color:#fff;font-size:12px;font-weight:550;line-height:1;padding:9px 11px;border-radius:8px;white-space:nowrap;box-shadow:0 8px 24px #0002;opacity:0;transition:opacity .16s ease,transform .16s ease;z-index:12}
+.shell.is-collapsed .nav-link:is(:hover,:focus-visible)::after,.shell.is-collapsed .side-help:is(:hover,:focus-visible)::after{opacity:1;transform:translate(0,-50%)}
+.sidebar-separator{position:fixed;top:0;left:calc(var(--sidebar-width) - 6px);height:100dvh;width:12px;z-index:10;cursor:col-resize;touch-action:none;outline:none}
+.sidebar-separator::after{content:"";display:block;position:absolute;left:5px;top:0;height:100%;width:2px;background:transparent;transition:background .18s}
+.sidebar-separator:is(:hover,:focus-visible)::after,.shell.is-resizing .sidebar-separator::after{background:var(--blue)}
+.sidebar-separator::before{content:'Drag to resize';position:absolute;left:22px;top:36%;white-space:nowrap;opacity:0;transform:translateX(-4px);background:#1d1d1f;color:#fff;padding:7px 11px;border-radius:8px;font:500 12px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;pointer-events:none;box-shadow:0 4px 15px #0002;transition:opacity .15s,transform .15s}
+.sidebar-separator:is(:hover,:focus-visible)::before{opacity:1;transform:translateX(0)}
+.shell.is-resizing .sidebar-separator::before{opacity:0}
+.main{min-width:0;background:#fff}
+.topbar{height:62px;background:rgba(255,255,255,.87);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 38px;gap:16px;position:sticky;top:0;z-index:5;backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4)}
+.topbar-leading{display:flex;align-items:center;gap:14px;min-width:0}
+.sidebar-toggle-top{display:grid;place-items:center;width:34px;height:34px;border:0;background:none;border-radius:9px;color:#6c707a;flex-shrink:0}
+.topbar-sep{height:18px;width:1px;background:#e1e2e6}
+.crumb{font-size:13px;color:#92949c;gap:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumb b{color:#3c3e45;font-weight:600}
+.top-note{font-size:12px;color:#90929b;white-space:nowrap}
+.page{max-width:1052px;margin:auto;padding:55px clamp(26px,5vw,70px) 110px}
+.headline{align-items:end;margin-bottom:30px}
+.eyebrow{display:none}
+.headline h1,.detail-wrap h1{font-size:clamp(32px,3vw,37px);font-weight:700;letter-spacing:-1.2px;line-height:1.13;margin:0 0 11px}
+.headline p{font-size:15.5px;color:#6c6d75;letter-spacing:-.05px}
+.button{border:1px solid #dedfe4;background:#fff;color:#373941;border-radius:10px;min-height:40px;display:inline-flex;justify-content:center;align-items:center;gap:9px;font-weight:610;padding:10px 15px;font-size:13.5px;letter-spacing:-.1px;box-shadow:0 1px 1px #11111104;transition:background .15s ease,box-shadow .15s ease,transform .15s ease}
+.button:hover{background:#f5f6f9;border-color:#cfd1d9;box-shadow:0 2px 7px #11111108}
+.button:active{transform:scale(.985)}
+.button.primary{background:#24262b;color:#fff;border-color:#24262b}
+.button.primary:hover{background:#3b3d43;border-color:#3b3d43}
+.button.quiet{color:#70737d;background:transparent;border-color:transparent}
+.button.quiet:hover{background:#f1f2f6}
+.icon-button{color:#757983;width:36px;height:36px;display:grid;place-items:center;border-radius:9px}
+.icon-button:hover{background:#f1f2f6;color:#24262c}
+.source-strip{border:1px solid #e6e7eb;background:#fafafb;border-radius:13px;padding:15px 16px;margin-bottom:45px;box-shadow:0 1px 3px #10182003}
+.source-badge-icon{background:#fff;border:1px solid #e9eaf0;border-radius:9px;color:#696d78;width:37px;height:37px}
+.source-title{font-size:14px;font-weight:650}
+.source-sub{font-size:12px;color:#868991}
+.source-mode{background:#edf1f8;border:none;color:#62738b;font-size:10.5px;border-radius:5px;padding:3px 7px}
+.source-action{color:#5d6470;font-size:12px}
+.section-kicker{letter-spacing:.04em;font-size:11px;color:#92949d;text-transform:none;font-weight:600}
+.list-top{margin-bottom:15px}
+.list-title{font-size:20px;font-weight:670;letter-spacing:-.55px}
+.progress-group{color:#8c8f97;font-size:12px;gap:7px}
+.progress-track{height:4px;background:#edeef2;border-radius:5px}
+.progress-fill{background:#4291ea}
+.tabs-toolbar{border-bottom:1px solid #e9eaf0}
+.tab{font-size:13px;color:#8f9199;padding:11px 0 13px;font-weight:560}
+.tab.active{font-weight:650;color:#252730;border-bottom-color:#2f7cd6}
+.tab-number{color:#9b9da3}
+.list-search{font-size:13px;border-color:#e1e2e7;background:white}
+.list-wrap,.checklist-list{border-top:0}
+.change-row,.check-row{min-height:80px;padding:13px 12px;margin:0;border-bottom:1px solid #f0f0f3;gap:16px;transition:background .15s ease}
+.change-row:hover,.check-row:hover{background:#f7f9fd;border-radius:9px}
+.row-icon{width:38px;height:38px;border-radius:11px;background:#f3f4f6;color:#747b86;border:1px solid #eceef1}
+.row-icon .mdi-icon{width:19px;height:19px}
+.row-name{font-size:15px;font-weight:650;letter-spacing:-.23px;color:#25272e}
+.row-detail{font-size:13.5px;color:#888a94;margin-top:3px}
+.row-meta{font-size:11.5px;color:#a1a4ac}
+.row-arrow{color:#b1b3ba}
+.footnote{font-size:11.5px;color:#9a9da5;margin-top:19px}
+.link-button{color:#5178a4;font-size:12px}
+.back{font-size:13px;color:#737781;margin-bottom:36px;font-weight:600}
+.back:hover{color:#20232a}
+.detail-wrap{max-width:780px}
+.detail-count{color:#7d8795;font-size:11px;letter-spacing:.035em;font-weight:660;margin-bottom:10px}
+.detail-wrap h1{font-size:34px;margin-bottom:8px}
+.detail-sub{color:#6e727c;font-size:16px;margin-bottom:29px}
+.specimen{border-color:#e7e8ec;border-radius:14px;margin-bottom:30px;box-shadow:0 1px 3px #12182608}
+.spec-top{background:#fafafb;border-bottom-color:#eaeaee;font-size:12px;height:46px;font-weight:630;color:#44474f}
+.spec-caveat{color:#9b9da6;font-weight:450;font-size:11px}
+.spec-col+.spec-col{border-left-color:#ebecf0}
+.spec-stage{background:#fff;min-height:150px}
+.spec-label{color:#999ca6;font-size:12px}
+.spec-button{background:#282a30}
+.detail-section{margin-bottom:26px}
+.detail-label{font-size:12px;text-transform:none;letter-spacing:0;font-weight:670;color:#6d707a;margin-bottom:11px}
+.values{gap:11px}
+.value{background:#fafafb;border:1px solid #ebecf0;border-radius:12px;padding:18px 20px}
+.value.after{background:#f8fafd;border-color:#e1eafb}
+.value-label{color:#94969f;font-size:12px}
+.value-text{font-size:19px;font-weight:680;color:#33353d}
+.value.after .value-text{color:#286db9}
+.figma-target{border:1px solid #e7e8ed;background:white;border-radius:13px;padding:16px;gap:14px}
+.figma-target-icon{background:#f2f4f7;color:#747c89;border-radius:9px}
+.figma-name{font-size:15px;font-weight:665;color:#2b2e35}
+.figma-desc{font-size:13px;color:#81858f}
+.figma-caption{font-size:11px;color:#a3a6ae}
+.code-disclosure{border-radius:12px;border-color:#e6e7eb}
+.code-disclosure summary{font-size:13px;color:#626670;padding:15px 17px}
+.code-content{background:#fafafa;border-top-color:#eaeaee}
+.detail-actions{border-top-color:#ececf0}
+.detail-actions .button{min-height:44px}
+.decision-resolved{background:#eff8f3;color:#417259;border-radius:11px}
+.decision-resolved.skipped{background:#f3f3f6;color:#6c717b}
+.checklist-list{border-top:1px solid #ececf0}
+.check-status{background:#eef4fd;color:#4475ac}
+.check-footnote{font-size:12px;color:#92959c}
+.empty-icon{background:#f2f4f8;color:#6c7786}
+.modal-root.open{backdrop-filter:blur(5px)}
+.overlay{background:rgba(17,20,26,.35)}
+.modal{border-radius:18px;box-shadow:0 30px 100px rgba(16,22,36,.17);background:#fff;padding:29px 30px}
+.modal h2{font-size:23px;font-weight:680;letter-spacing:-.7px}
+.modal p{color:#747780}
+.url-input{border:1px solid #dde0e7;border-radius:10px}
+.about-caution{background:#f6f7f9;color:#727680}
+.toast{background:#282a30;border-radius:11px;font-size:13px;box-shadow:var(--shadow)}
+.sidebar-scrim{display:none}
+/* Window-width adaptations. Keep the reference's sidebar interaction on wide screens. */
+@media(max-width:1050px) and (min-width:761px){.page{padding:45px 30px 80px}.topbar{padding:0 30px}.top-note{display:none}}
+@media(max-width:760px){
+ .shell,.shell.is-collapsed{display:block;--sidebar-width:264px}
+ .sidebar{position:fixed;left:0;top:0;bottom:0;height:100dvh;width:min(82vw,295px);padding:18px 11px 16px;transform:translateX(-103%);transition:transform .28s cubic-bezier(.25,.8,.25,1);z-index:30;box-shadow:10px 0 40px rgba(20,27,39,.07)}
+ .shell.mobile-open .sidebar{transform:translateX(0)}
+ .shell.is-collapsed .sidebar-head{justify-content:space-between}
+ .shell.is-collapsed .brand-name,.shell.is-collapsed .sidebar-collapse,.shell.is-collapsed .workspace-label,.shell.is-collapsed .nav-text,.shell.is-collapsed .count,.shell.is-collapsed .side-meta{display:flex}
+ .shell.is-collapsed .nav-link,.shell.is-collapsed .side-help{width:100%;height:41px;min-height:41px;justify-content:flex-start;gap:12px;padding:0 12px;margin:0}
+ .shell.is-collapsed .side-help .help-label{display:inline}
+ .shell.is-collapsed .sidebar{padding-left:11px;padding-right:11px}
+ .shell.is-collapsed .nav-link::after,.shell.is-collapsed .side-help::after{display:none}
+ .sidebar-separator{display:none}
+ .sidebar-scrim{display:block;opacity:0;visibility:hidden;position:fixed;inset:0;background:rgba(10,14,24,.20);z-index:24;transition:opacity .25s,visibility .25s}
+ .shell.mobile-open .sidebar-scrim{opacity:1;visibility:visible}
+ .main .topbar{display:flex;height:58px;padding:0 18px;position:sticky;z-index:12}
+ .topbar-sep{height:15px}
+ .top-note{display:none}
+ .page{padding:34px 22px 80px}
+ .brand-name{display:inline}
+}
+@media(max-width:540px){
+ .page{padding:31px 19px 75px}
+ .headline{gap:10px;align-items:start}
+ .headline h1{font-size:32px}
+ .headline p{font-size:14.5px;line-height:1.45}
+ .headline .button{width:42px;min-width:42px;font-size:0;gap:0}
+ .headline .button .mdi-icon{width:19px;height:19px}
+ .source-strip{margin-bottom:32px;padding:13px}
+ .source-title{font-size:13.5px}
+ .source-sub{font-size:11px}
+ .list-title{font-size:19px}
+ .row-name{font-size:14.5px}
+ .row-detail{font-size:13px}
+ .detail-wrap h1{font-size:30px}
+ .detail-sub{font-size:15px}
+ .spec-stage{min-height:123px;padding:12px 8px}
+ .modal{padding:22px}
+}
+@media(prefers-reduced-motion:reduce){.shell,.sidebar,.sidebar-scrim,.nav-link,.button,.sidebar-separator::after{transition:none!important}.view-enter{animation:none!important}}
+@keyframes appear{from{opacity:.6;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.view-enter{animation:appear .22s ease both}
+@media(max-width:760px){
+ .sidebar .nav-wrap{display:grid;align-items:stretch;margin:0;width:100%;gap:5px}
+ .sidebar .sidebar-spacer{display:block;flex:1}
+ .sidebar .side-meta{display:flex}
+ .sidebar .workspace-label{display:block;margin-bottom:10px}
+ .sidebar .brand{font-size:15px}
+ .shell.is-collapsed .sidebar .nav-wrap{display:grid;margin:0;width:100%}
+}
+
+
+/* V5 design system — original, reference-informed workspace styling */
+:root{--ink:#1e1f22;--sub:#64666c;--quiet:#95979e;--line:#e6e7e9;--wash:#f5f5f6;--white:#fff;--hover:#f5f6f7;--accent:#ed7554;--accent-soft:#fff1eb;--blue:#fa7f58;--sidebar-width:258px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Inter,"Segoe UI",sans-serif}
+html,body{background:#e9e9eb;color:var(--ink);font-size:16px}
+body{padding:16px;overflow-x:hidden}
+.shell{min-height:calc(100vh - 32px);grid-template-columns:var(--sidebar-width) minmax(0,1fr);border-radius:22px;overflow:clip;border:1px solid #ffffffb8;background:#fff;box-shadow:0 18px 65px rgba(29,32,41,.07),0 1px 2px rgba(30,32,38,.07);transition:grid-template-columns .34s cubic-bezier(.22,.8,.22,1)}
+.shell.is-resizing{transition:none!important}
+.sidebar{position:sticky;top:0;height:calc(100vh - 34px);background:#f7f7f8;border-right:1px solid #e5e5e8;padding:27px 14px 17px;overflow:visible}
+.sidebar-head{gap:11px;min-height:42px;padding:0 6px}
+.brand{font-weight:700;font-size:16px;gap:10px;padding:0 3px;letter-spacing:-.48px}
+.brand-logo{background:#ed795a;color:white;border-radius:11px;width:36px;height:36px;font-size:24px;box-shadow:0 2px 5px #dc765130}
+.brand-logo span{color:#fff4e9}
+.brand-name{font-weight:690}
+.workspace-label{margin-top:43px;margin-bottom:8px;font-size:10px;letter-spacing:.085em;color:#a1a2a8;padding:0 12px;font-weight:690}
+.nav-wrap{gap:3px}
+.nav-link,.side-help{height:43px;min-height:43px;padding:0 12px;gap:13px;border-radius:10px;color:#55585f;font-weight:570;font-size:14px}
+.nav-link .mdi-icon,.side-help .mdi-icon{width:19px;height:19px}
+.nav-link:hover,.side-help:hover{background:#ebecef;color:#2b2d32}
+.nav-link.active{background:#fff0e9;color:#d35d3c;font-weight:665}
+.nav-link.active .count{color:#d35d3c}
+.count{font-size:12px;color:#8f9097;font-weight:560}
+.sidebar-collapse,.sidebar-toggle-top{color:#737780;border:0;border-radius:9px}
+.sidebar-collapse:hover,.sidebar-toggle-top:hover{background:#e9eaed;color:#24262d}
+.side-meta{font-size:11.5px;color:#8c8e95}
+.side-meta-dot{background:#d9a087}
+.sidebar-separator{left:calc(16px + var(--sidebar-width) - 7px);width:14px;z-index:20}
+.sidebar-separator::after{left:6px;top:8px;bottom:8px;height:calc(100% - 16px);width:2px;border-radius:2px}
+.sidebar-separator:is(:hover,:focus-visible)::after,.shell.is-resizing .sidebar-separator::after{background:#fd855f;box-shadow:0 0 0 3px #fc845f18}
+.sidebar-separator::before{content:'Drag to resize';left:22px;top:49%;padding:8px 13px;border-radius:9px;box-shadow:0 8px 25px #17181924}
+.shell.is-resizing .sidebar-separator::before{content:'Drag to resize';opacity:1;transform:translateX(0)}
+.shell.is-collapsed .sidebar{padding-left:13px;padding-right:13px}
+.shell.is-collapsed .sidebar-head{justify-content:center;margin-bottom:46px}
+.shell.is-collapsed .nav-link,.shell.is-collapsed .side-help{width:46px;height:46px;min-height:46px;border-radius:11px;margin:0 auto}
+.shell.is-collapsed .nav-link::after,.shell.is-collapsed .side-help::after{background:#27282c;color:#fff;border-radius:8px;font-weight:560;left:calc(100% + 18px)}
+.main{min-width:0;background:#fff}
+.topbar{height:68px;padding:0 clamp(24px,3.1vw,54px);border-bottom:1px solid #ececef;background:rgba(255,255,255,.95);backdrop-filter:blur(24px)}
+.crumb{font-size:13px;font-weight:530;color:#8f9198}
+.crumb b{font-weight:650;color:#3e4149}
+.top-note{border:1px solid #ededf0;background:#fafafa;border-radius:30px;padding:6px 11px;color:#777981;font-size:11.5px}
+.page{max-width:1480px;padding:45px clamp(24px,3.1vw,54px) 88px;margin:0 auto}
+.headline{margin:0 0 29px;align-items:end}
+.page-overline{font-size:11px;letter-spacing:.095em;font-weight:750;color:#8b8e95;margin-bottom:12px}
+.headline h1{font-size:clamp(31px,3vw,41px);letter-spacing:-1.55px;font-weight:740;color:#202127;margin-bottom:9px}
+.title-dot{color:#ed7858}
+.headline p{font-size:15.5px;color:#777a82;letter-spacing:-.1px}
+.button{border-radius:11px;font-size:13.5px;min-height:42px;padding:10px 17px;font-weight:630;box-shadow:none}
+.button.primary{background:#202124;color:white;border-color:#202124}
+.button.primary:hover{background:#393a3f;border-color:#393a3f}
+.button.primary:active{background:#131416}
+.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.metric-card{border:1px solid #ebebee;border-radius:18px;padding:19px 21px 18px;background:#fff;min-height:164px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 2px 10px #15191d05}
+.metric-card.metric-featured{background:linear-gradient(125deg,#ff885e 0%,#f26d4a 78%,#ed6847 100%);border:1px solid #f57d5a;color:#fff;box-shadow:0 8px 26px #f2764e22}
+.metric-top{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#5b5d65;font-size:13px;font-weight:615}
+.metric-top .mdi-icon{color:#868892;width:19px;height:19px}
+.metric-featured .metric-top,.metric-featured .metric-top .mdi-icon{color:#fffef7}
+.metric-number{font-size:43px;font-weight:740;line-height:1.02;letter-spacing:-2.2px;font-variant-numeric:tabular-nums;margin-top:8px}
+.metric-foot{color:#85878e;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:20px}
+.metric-featured .metric-foot{color:#ffede7}
+.metric-mini{font-size:12px}
+.dot-pattern{height:24px;width:75px;opacity:.67;background-image:radial-gradient(circle,#fff 1.7px,transparent 2px);background-size:8px 8px;mask-image:linear-gradient(90deg,transparent,black)}
+.tiny-pulse{width:10px;height:10px;border-radius:50%;background:#f9aa73;box-shadow:0 0 0 4px #ffeadc}
+.metric-link{font-size:12px;font-weight:670;color:#dd704c;cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap}
+.metric-link:hover{text-decoration:underline}
+.workspace-grid{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(280px,.8fr);gap:18px;align-items:start}
+.workspace-primary,.workspace-aside{border:1px solid #e9e9ec;border-radius:19px;background:#fff;box-shadow:0 1px 7px #0b0c1105}
+.workspace-primary{padding:23px 25px 15px;min-width:0}
+.workspace-aside{padding:25px 24px 23px;min-height:410px;background:#fcfcfd}
+.aside-label{font-size:11px;color:#9b9da4;font-weight:710;letter-spacing:.09em}
+.aside-progress{height:170px;display:grid;place-items:center}
+.progress-circle{width:143px;height:143px;border-radius:50%;background:conic-gradient(#f17b57 var(--completion),#eaeaee 0);padding:12px;display:grid;place-items:center;transition:background .2s}
+.circle-inner{width:100%;height:100%;background:#fcfcfd;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0}
+.circle-inner strong{font-size:34px;letter-spacing:-1.5px;line-height:1.2;font-weight:730}
+.circle-inner span{font-size:12px;color:#93959c}
+.workspace-aside h3{font-size:17px;font-weight:685;letter-spacing:-.35px;margin:4px 0 7px}
+.workspace-aside p{color:#82858d;font-size:13.5px;line-height:1.6;margin:0 0 22px}
+.aside-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:15px 0;border-top:1px solid #ededf0;border-bottom:1px solid #ededf0}
+.aside-stats>div{display:flex;flex-direction:column;gap:2px}.aside-stats span{font-size:12px;color:#92949b}.aside-stats strong{font-size:22px;font-weight:710;font-variant-numeric:tabular-nums}
+.aside-link{width:100%;border:0;background:#202124;color:white;border-radius:10px;min-height:43px;padding:10px 13px;margin-top:19px;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:655}
+.aside-link:hover{background:#3c3d40}
+.aside-caption{margin-top:14px;color:#9a9ca3;font-size:11px;line-height:1.45;display:flex;align-items:start;gap:7px}
+.aside-caption .mdi-icon{margin-top:1px;flex-shrink:0}
+.source-strip{background:#f7f7f8;border-color:#ececef;border-radius:12px;padding:13px 15px;margin-bottom:25px}
+.source-badge-icon{border:0;background:#fff;box-shadow:0 0 0 1px #e9e9ec;color:#787b83}
+.source-title{font-size:14px;font-weight:660}
+.source-sub{font-size:12px;color:#92949b}
+.source-mode{background:#eaeaf0;color:#737780;font-weight:620}
+.list-top{margin-bottom:12px}.section-kicker{font-size:11px;color:#a0a1a8;letter-spacing:.035em;font-weight:650}.list-title{font-size:20px;font-weight:700;letter-spacing:-.6px}
+.progress-group{display:none}
+.tabs-toolbar{border-color:#ebebee}.tab.active{border-bottom-color:#ec7653;color:#2a2b31}.tab{font-size:13px}
+.change-row,.check-row{min-height:77px;padding:12px 8px;gap:13px;border-bottom-color:#f0f0f2}
+.change-row:hover,.check-row:hover{background:#fafafa;border-radius:10px}
+.row-icon{width:39px;height:39px;border:0;background:#f4f4f6;color:#7c7f88;border-radius:11px}
+.row-name{font-size:15px;color:#303139;font-weight:665}
+.row-detail{font-size:13.5px;color:#95979f}
+.row-arrow{color:#babcc2}
+.row-meta{color:#d77957}
+.footnote{font-size:11px;color:#a0a2a8}
+.link-button{color:#d66f51}
+/* The detailed review uses the same card rhythm, without fake metrics. */
+#detailView,#checklistView{max-width:1080px;margin:0 auto}
+.detail-wrap{max-width:880px}
+.detail-wrap h1{font-size:clamp(31px,3vw,40px);letter-spacing:-1.2px}
+.detail-sub{font-size:16px}
+.specimen,.figma-target,.code-disclosure{border-radius:17px;border-color:#e6e6e9;box-shadow:0 1px 8px #10121b05}
+.spec-top{height:52px;background:#fafafb;font-size:13px}
+.spec-stage{min-height:165px}
+.spec-label{font-size:13px;color:#8d9097}
+.value{border-radius:13px;background:#f8f8fa}
+.value.after{background:#fff4ee;border-color:#ffe6d8}
+.value.after .value-text{color:#d86a4c}
+.detail-label{font-size:13px;color:#595b63}
+.figma-target{padding:21px}
+.figma-name{font-size:16px}
+.figma-desc{font-size:13.5px}
+.figma-caption{font-size:12px}
+.detail-actions .button{min-height:47px}
+/* Continuous split-view resize: blue/orange line tracks the cursor; label follows divider. */
+.sidebar-separator{transition:left .34s cubic-bezier(.22,.8,.22,1);--drag-y:48%}
+.sidebar-separator::after{top:calc(var(--drag-y) - 48px);height:96px;bottom:auto;background:linear-gradient(180deg,transparent,#fd845f 22%,#fd845f 78%,transparent)!important;opacity:0;transition:opacity .18s;box-shadow:none!important}
+.sidebar-separator:hover::after,.sidebar-separator:focus-visible::after,.shell.is-resizing .sidebar-separator::after{opacity:1}
+.sidebar-separator::before{top:var(--drag-y);transform:translate(-4px,-50%)}
+.sidebar-separator:hover::before,.sidebar-separator:focus-visible::before,.shell.is-resizing .sidebar-separator::before{transform:translate(0,-50%)}
+.shell.is-resizing .sidebar-separator{transition:none}
+.shell.is-resizing .sidebar-separator::after{background:linear-gradient(180deg,transparent,#fd845f 22%,#fd845f 78%,transparent)!important;box-shadow:none}
+.shell.is-resizing .sidebar-separator::before{top:var(--drag-y);left:22px;color:#fff;font-size:12px;font-weight:650;background:#25272b}
+/* Pixel-sized navigation should feel like the video: no jump in content while resizing. */
+@media(max-width:1180px){.workspace-grid{grid-template-columns:minmax(0,1fr)}.workspace-aside{min-height:0;display:grid;grid-template-columns:auto 1fr;column-gap:22px;align-items:center}.aside-label{grid-column:1/-1}.aside-progress{grid-row:2/5;width:142px;height:148px}.workspace-aside h3,.workspace-aside p,.aside-stats,.aside-link,.aside-caption{grid-column:2}.workspace-aside h3{margin-top:0}.workspace-aside p{margin-bottom:8px}.aside-stats{padding:8px 0}.aside-link{margin-top:9px}.aside-caption{margin-top:8px}}
+@media(max-width:900px){.metric-grid{gap:10px}.metric-card{padding:17px;min-height:150px}.metric-number{font-size:37px}.metric-top{font-size:12px}.workspace-primary{padding:20px}}
+@media(max-width:760px){body{padding:0;background:#fff}.shell,.shell.is-collapsed{border:0;border-radius:0;min-height:100vh}.sidebar{height:100dvh;position:fixed;width:min(86vw,308px);border-radius:0;padding-top:19px}.sidebar-separator{display:none}.main .topbar{height:62px;padding:0 19px}.page{padding:27px 20px 70px}.metric-grid{grid-template-columns:1fr 1fr;gap:11px}.metric-card{min-height:140px}.metric-featured{grid-column:1/-1;min-height:126px}.metric-featured .metric-number{font-size:41px}.workspace-grid{display:block}.workspace-primary{padding:18px 14px 14px}.workspace-aside{margin-top:15px}.headline{align-items:start}.headline h1{font-size:33px}}
+@media(max-width:510px){.page{padding:25px 14px 65px}.metric-grid{gap:8px}.metric-card{padding:15px;min-height:140px}.metric-featured{min-height:125px}.metric-top{font-size:12px}.metric-number{font-size:35px}.metric-featured .metric-number{font-size:40px}.metric-foot{font-size:11px}.metric-link{font-size:11px}.headline h1{font-size:32px}.headline p{font-size:14.5px;line-height:1.45}.workspace-primary{padding:15px 13px}.workspace-aside{padding:19px 17px}.source-title{font-size:13px}.source-sub{font-size:11px}.row-name{font-size:14px}.row-detail{font-size:12.5px}.top-note{display:none}.aside-progress{width:119px;height:130px}.progress-circle{width:114px;height:114px;padding:10px}.circle-inner strong{font-size:27px}.aside-stats strong{font-size:19px}}
+@media(prefers-reduced-motion:reduce){.shell,.sidebar-separator,.progress-circle{transition:none!important}}
+
+/* V6: connected-workflow layout, no decorative desktop frame */
+html,body{background:#fff!important}body{padding:0!important}
+.shell,.shell.is-collapsed{min-height:100vh!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;background:#fff;transition:grid-template-columns .25s cubic-bezier(.2,.76,.2,1)!important}
+.shell.is-resizing{transition:none!important}
+.sidebar{background:#f7f7f8!important;border-right:1px solid #e6e8eb!important;height:100vh!important;padding-top:24px!important;overflow:hidden!important}
+.sidebar-head{margin-bottom:37px!important}
+.brand{font-size:16px!important;letter-spacing:-.48px!important}
+.brand-logo{border:0!important;box-shadow:none!important;background:transparent!important;color:#252930!important;border-radius:8px!important;width:28px!important;height:28px!important;min-width:28px!important;padding:0!important}
+.brand-logo .mdi-icon{width:22px;height:22px}
+.sidebar-separator{left:calc(var(--sidebar-width) - 7px)!important}
+.sidebar-separator::after{box-shadow:none!important;background:transparent!important}
+.sidebar-separator:hover::after,.shell.is-resizing .sidebar-separator::after{background:#9eacbd!important;opacity:.85!important}
+.sidebar-separator::before{display:none!important}
+.sidebar .nav-text,.sidebar .count,.sidebar .brand-name,.sidebar .help-label,.sidebar .side-meta-text{opacity:var(--nav-visibility,1)}
+.sidebar .nav-text,.sidebar .count,.sidebar .brand-name{transition:opacity .12s linear}
+.topbar{height:66px!important;background:#fff!important;border-bottom:1px solid #eeeff0!important}
+.topbar .sidebar-toggle-top{background:none;border:0;width:33px;height:33px}
+.page{max-width:1300px!important;margin:0 auto!important;padding:44px clamp(28px,4.5vw,72px) 96px!important}
+.headline{margin-bottom:28px!important;align-items:center!important}.headline h1{font-size:37px!important;font-weight:720!important;letter-spacing:-1.5px!important;margin-bottom:5px!important}.headline p{font-size:15px!important}
+.page-overline{color:#777b83!important;font-size:11px!important;letter-spacing:.045em!important}
+.metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;margin-bottom:22px!important}
+.metric-card,.metric-card.metric-featured{background:#fff!important;min-height:102px!important;border:1px solid #e8e9ec!important;box-shadow:none!important;border-radius:14px!important;padding:17px 20px!important;color:#25262b!important}
+.metric-top,.metric-featured .metric-top,.metric-featured .metric-top .mdi-icon{color:#6b7078!important;font-size:13px!important}
+.metric-number{font-size:32px!important;letter-spacing:-1.2px!important;margin-top:5px!important}
+.metric-featured .metric-foot,.metric-foot{color:#92969e!important}.dot-pattern,.tiny-pulse{display:none!important}
+.workspace-grid{grid-template-columns:minmax(0,1fr)!important}.workspace-aside{display:none!important}.workspace-primary{padding:22px 26px 18px!important;border-radius:15px!important;box-shadow:none!important;border-color:#e7e9ec!important}
+.source-strip{margin-bottom:24px!important}.list-title{font-size:21px!important}.change-row,.check-row{min-height:78px!important}.row-name{font-size:15.5px!important}.row-detail{font-size:13.5px!important;color:#777b85!important}
+.nav-link.active{background:#e9ebee!important;color:#24262b!important}.nav-link.active .count{color:#4c515a!important}.nav-link:hover{background:#eaecef!important}
+.button.primary{background:#212329!important;border-color:#212329!important;color:#fff!important}.button{border-radius:9px!important}
+.section-page{max-width:1160px;margin:auto}.section-overline{font-size:11px;letter-spacing:.08em;color:#868992;font-weight:700;margin:0 0 7px}.section-heading{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:34px}.section-heading h1{font-size:38px;letter-spacing:-1.5px;font-weight:730;margin:0 0 8px}.section-heading p:last-child{font-size:15px;color:#777b82;margin:0}
+.systems-grid,.connection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.system-tile,.connection-tile{border:1px solid #e5e7ea;border-radius:16px;padding:26px;background:#fff;display:flex;flex-direction:column;min-height:320px}.system-mark{height:47px;width:47px;display:grid;place-items:center;border-radius:13px;font-weight:750;font-size:20px;margin-bottom:23px}.system-mark.penny{color:#008254;background:#e4f4ed}.system-mark.learning{color:#495e93;background:#edf0fc}.system-info{flex:1}.tile-kicker,.builder-label{font-size:11px;font-weight:700;letter-spacing:.075em;color:#868991}.system-info h2,.builder-panel h2,.connection-tile h2{font-size:21px;letter-spacing:-.6px;margin:8px 0}.system-info p,.builder-panel p,.builder-aside p,.connection-tile p{font-size:14px;color:#747780;line-height:1.6;margin:0}.system-tags{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}.system-tags span{font-size:11px;background:#f3f4f6;color:#777b85;padding:6px 9px;border-radius:6px}.tile-actions{display:flex;gap:8px;margin-top:28px;flex-wrap:wrap}.tile-actions .button{font-size:13px}
+.builder-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:18px}.builder-panel,.builder-aside{border:1px solid #e5e7ea;border-radius:16px;padding:32px;background:#fff}.builder-panel h2{font-size:25px;margin:8px 0 7px}.builder-panel label{display:block;font-size:13px;font-weight:650;margin:23px 0 8px}.builder-panel input,.builder-panel textarea{width:100%;padding:13px 14px;border:1px solid #dfe1e5;border-radius:9px;background:white;color:#24272b;font:15px inherit;outline-offset:2px}.builder-panel textarea{resize:vertical;min-height:110px}.builder-panel .button{margin-top:23px}.builder-feedback{margin-top:13px;font-size:13px;color:#296445;min-height:22px}.builder-aside{background:#fcfcfd}.builder-aside h3{font-size:19px;margin:12px 0 8px}.switch-tabs{display:flex;gap:3px;background:#eeeeef;padding:4px;border-radius:9px;margin-top:25px}.switch-tabs button{flex:1;border:0;background:transparent;border-radius:7px;font:600 12px inherit;padding:10px;color:#777}.switch-tabs button.active{background:#fff;color:#25282c;box-shadow:0 1px 3px #0001}.preview-surface{background:white;border:1px solid #eee;border-radius:10px;display:grid;place-items:center;min-height:165px;margin:16px 0}.live-penny-button{background:#008254;color:#fff;border:0;border-radius:2px;min-height:44px;padding:0 21px;font:600 14px inherit;transition:border-radius .2s}.preview-properties{display:flex;justify-content:space-between;border-top:1px solid #eceef0;padding:13px 0;color:#777b84;font-size:13px}.preview-properties strong{font-weight:650;color:#282a2f}.builder-aside>.button{margin-top:16px}
+.connection-icon{width:44px;height:44px;background:#f0f1f3;color:#50545a;display:grid;place-items:center;border-radius:12px;margin-bottom:23px}.connection-tile .button{margin-top:auto;align-self:start}.text-link{font-size:13px;font-weight:650;color:#414852;margin-top:14px;text-decoration:underline;text-underline-offset:3px}.connection-tile p{margin-bottom:28px}.setup-notes{margin-top:22px;border:1px solid #e6e7ea;background:#fafafb;border-radius:13px;padding:23px 26px;max-width:1000px}.setup-notes strong{font-size:15px}.setup-notes p{color:#626771;line-height:1.6;font-size:14px}.setup-notes p:last-child{margin-bottom:0}
+@media(max-width:1000px){.systems-grid,.connection-grid,.builder-layout{grid-template-columns:1fr}.system-tile{min-height:260px}}
+@media(max-width:760px){.page{padding:26px 18px 65px!important}.shell,.shell.is-collapsed{display:block!important}.sidebar{height:100dvh!important}.metric-grid{gap:8px!important}.metric-card,.metric-card.metric-featured{padding:14px!important;min-height:96px!important}.metric-number{font-size:29px!important}.metric-foot{display:none!important}.headline h1,.section-heading h1{font-size:30px!important}.system-tile,.connection-tile,.builder-panel,.builder-aside{padding:22px}.sidebar-separator{display:none!important}}
+@media(max-width:480px){.metric-top{font-size:11px!important}.metric-number{font-size:27px!important}.metric-card,.metric-card.metric-featured{padding:11px!important}.workspace-primary{padding:16px!important}}
+@media(prefers-reduced-motion:reduce){.shell,.sidebar *,.live-penny-button{transition:none!important}}
+
+/* Keep labels in the layout while the rail closes. */
+@media (min-width:761px){
+ .sidebar .nav-link,.sidebar .side-help{transition:background-color .16s ease,padding .25s cubic-bezier(.2,.76,.2,1)!important}
+ .sidebar .nav-text,.sidebar .brand-name,.sidebar .help-label{display:inline-block!important;max-width:220px;overflow:hidden;white-space:nowrap;opacity:1;transition:max-width .25s cubic-bezier(.2,.76,.2,1),opacity .12s ease!important}
+ .shell.is-collapsed .sidebar .nav-text,.shell.is-collapsed .sidebar .brand-name,.shell.is-collapsed .sidebar .help-label{max-width:0;opacity:0!important;pointer-events:none}
+ .shell.is-collapsed .sidebar .nav-link,.shell.is-collapsed .sidebar .side-help{width:100%;min-width:0;margin:0;padding:0 10px;justify-content:flex-start;gap:12px}
+ .shell.is-collapsed .sidebar .brand{gap:0;justify-content:flex-start}
+ .shell.is-collapsed .sidebar .sidebar-head{justify-content:flex-start}
+ .shell.is-collapsed .sidebar .nav-wrap{width:100%}
+}
+
+/* Editorial text treatment inside the educator example */
+.builder-panel textarea,.builder-panel input{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif!important;font-size:15px!important;line-height:1.55!important;color:#24262b!important}
+.builder-panel textarea{min-height:116px;resize:vertical}
+</style></head><body><svg aria-hidden="true" class="icon-definitions" focusable="false" height="0" style="position:absolute;overflow:hidden;width:0;height:0;pointer-events:none" width="0" xmlns="http://www.w3.org/2000/svg">
+<symbol id="mdi-check" viewbox="0 0 512 512"><path d="M448 299 192 43 75 160 105 190 192 103 418 329Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-check-circle-outline" viewbox="0 0 512 512"><path d="M256 405Q198 405 149.0 376.5Q100 348 71.5 299.0Q43 250 43.0 192.0Q43 134 71.5 85.0Q100 36 149.0 7.5Q198 -21 256.0 -21.0Q314 -21 363.0 7.5Q412 36 440.5 85.0Q469 134 469.0 192.0Q469 250 440.5 299.0Q412 348 363.0 376.5Q314 405 256 405ZM256 21Q210 21 170.5 44.0Q131 67 108.0 106.5Q85 146 85.0 192.0Q85 238 108.0 277.5Q131 317 170.5 340.0Q210 363 256.0 363.0Q302 363 341.5 340.0Q381 317 404.0 277.5Q427 238 427.0 192.0Q427 146 404.0 106.5Q381 67 341.5 44.0Q302 21 256 21ZM354 286 213 146 158 201 128 171 213 85 384 256Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-chevron-down" viewbox="0 0 512 512"><path d="M158 265 256 167 354 265 384 235 256 107 128 235Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-chevron-right" viewbox="0 0 512 512"><path d="M183 94 281 192 183 290 213 320 341 192 213 64Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-code-tags" viewbox="0 0 512 512"><path d="M311 94 410 192 311 290 341 320 469 192 341 64ZM201 94 102 192 201 290 171 320 43 192 171 64Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-download" viewbox="0 0 512 512"><path d="M107 21H405V64H107ZM405 256H320V384H192V256H107L256 107Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-format-list-bulleted" viewbox="0 0 512 512"><path d="M149 341H448V299H149ZM149 171V213H448V171ZM85 352Q99 352 108.0 342.5Q117 333 117.0 320.0Q117 307 108.0 297.5Q99 288 85.5 288.0Q72 288 62.5 297.5Q53 307 53.0 320.0Q53 333 62.5 342.5Q72 352 85 352ZM85 224Q99 224 108.0 214.5Q117 205 117.0 192.0Q117 179 108.0 169.5Q99 160 85.5 160.0Q72 160 62.5 169.5Q53 179 53.0 192.0Q53 205 62.5 214.5Q72 224 85 224ZM149 43V85H448V43ZM85 96Q99 96 108.0 86.5Q117 77 117.0 64.0Q117 51 108.0 41.5Q99 32 85.5 32.0Q72 32 62.5 41.5Q53 51 53.0 64.0Q53 77 62.5 86.5Q72 96 85 96Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-help-circle-outline" viewbox="0 0 512 512"><path d="M235 64H277V107H235ZM256 405Q214 405 174.5 389.0Q135 373 105.0 343.0Q75 313 59.0 273.5Q43 234 43.0 192.0Q43 150 59.0 110.5Q75 71 105.0 41.0Q135 11 174.5 -5.0Q214 -21 256.0 -21.0Q298 -21 337.5 -5.0Q377 11 407.0 41.0Q437 71 453.0 110.5Q469 150 469.0 192.0Q469 234 453.0 273.5Q437 313 407.0 343.0Q377 373 337.5 389.0Q298 405 256 405ZM256 21Q210 21 170.5 44.0Q131 67 108.0 106.5Q85 146 85.0 192.0Q85 238 108.0 277.5Q131 317 170.5 340.0Q210 363 256.0 363.0Q302 363 341.5 340.0Q381 317 404.0 277.5Q427 238 427.0 192.0Q427 146 404.0 106.5Q381 67 341.5 44.0Q302 21 256 21ZM256 320Q221 320 196.0 295.0Q171 270 171 235H213Q213 252 225.5 264.5Q238 277 256.0 277.0Q274 277 286.5 264.5Q299 252 299 235Q299 222 291 212Q286 206 272 196Q254 182 247 171Q235 154 235 128H277Q277 144 287 157Q293 165 309.0 179.0Q325 193 331 202Q341 216 341 235Q341 270 316.0 295.0Q291 320 256 320Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-information-outline" viewbox="0 0 512 512"><path d="M235 256H277V299H235ZM256 21Q210 21 170.5 44.0Q131 67 108.0 106.5Q85 146 85.0 192.0Q85 238 108.0 277.5Q131 317 170.5 340.0Q210 363 256.0 363.0Q302 363 341.5 340.0Q381 317 404.0 277.5Q427 238 427.0 192.0Q427 146 404.0 106.5Q381 67 341.5 44.0Q302 21 256 21ZM256 405Q214 405 174.5 389.0Q135 373 105.0 343.0Q75 313 59.0 273.5Q43 234 43.0 192.0Q43 150 59.0 110.5Q75 71 105.0 41.0Q135 11 174.5 -5.0Q214 -21 256.0 -21.0Q298 -21 337.5 -5.0Q377 11 407.0 41.0Q437 71 453.0 110.5Q469 150 469.0 192.0Q469 234 453.0 273.5Q437 313 407.0 343.0Q377 373 337.5 389.0Q298 405 256 405ZM235 85H277V213H235Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-layers-triple-outline" viewbox="0 0 512 512"><path d="M256 95 413 218 448 191 256 41 64 191 99 217ZM256 149 64 299 256 448 448 299ZM256 394 134 299 256 203 378 299ZM256 -10 413 112 448 85 256 -64 64 85 99 112Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-magnify" viewbox="0 0 512 512"><path d="M203 384Q240 384 272.0 365.5Q304 347 322.5 315.0Q341 283 341 245Q341 194 308 155L314 149H331L437 43L405 11L299 117V134L293 140Q254 107 203 107Q165 107 133.0 125.5Q101 144 82.5 176.0Q64 208 64.0 245.5Q64 283 82.5 315.0Q101 347 133.0 365.5Q165 384 203 384ZM203 341Q163 341 135.0 313.0Q107 285 107.0 245.0Q107 205 135.0 177.0Q163 149 203.0 149.0Q243 149 271.0 177.0Q299 205 299.0 245.0Q299 285 271.0 313.0Q243 341 203 341Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-minus-circle-outline" viewbox="0 0 512 512"><path d="M256 21Q210 21 170.5 44.0Q131 67 108.0 106.5Q85 146 85.0 192.0Q85 238 108.0 277.5Q131 317 170.5 340.0Q210 363 256.0 363.0Q302 363 341.5 340.0Q381 317 404.0 277.5Q427 238 427.0 192.0Q427 146 404.0 106.5Q381 67 341.5 44.0Q302 21 256 21ZM256 405Q214 405 174.5 389.0Q135 373 105.0 343.0Q75 313 59.0 273.5Q43 234 43.0 192.0Q43 150 59.0 110.5Q75 71 105.0 41.0Q135 11 174.5 -5.0Q214 -21 256.0 -21.0Q298 -21 337.5 -5.0Q377 11 407.0 41.0Q437 71 453.0 110.5Q469 150 469.0 192.0Q469 234 453.0 273.5Q437 313 407.0 343.0Q377 373 337.5 389.0Q298 405 256 405ZM149 171H363V213H149Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-open-in-new" viewbox="0 0 512 512"><path d="M299 384V341H375L166 132L196 102L405 311V235H448V384ZM405 43H107V341H256V384H107Q89 384 76.5 371.5Q64 359 64 341V43Q64 25 76.5 12.5Q89 0 107 0H405Q423 0 435.5 12.5Q448 25 448 43V192H405Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-palette-outline" viewbox="0 0 512 512"><path d="M256 -21Q214 -21 174.5 -5.0Q135 11 105.0 41.0Q75 71 59.0 110.5Q43 150 43.0 192.0Q43 234 59.0 273.5Q75 313 105.0 343.0Q135 373 174.5 389.0Q214 405 256 405Q314 405 363.0 379.5Q412 354 440.5 310.0Q469 266 469 213Q469 179 452.0 149.5Q435 120 405.5 102.5Q376 85 341 85H303Q298 85 295.0 82.0Q292 79 292 75Q292 74 293.0 71.5Q294 69 294 68Q307 52 307 32Q309 10 294.0 -5.5Q279 -21 256 -21ZM256 363Q210 363 170.5 340.0Q131 317 108.0 277.5Q85 238 85.0 192.0Q85 146 108.0 106.5Q131 67 170.5 44.0Q210 21 256 21Q261 21 264.0 24.0Q267 27 267 32Q267 34 265 38V41Q252 57 252 75Q252 97 267.5 112.5Q283 128 305 128H341Q377 128 402.0 153.0Q427 178 427 213Q427 254 404.0 288.5Q381 323 341.5 343.0Q302 363 256 363ZM139 235Q151 235 161.0 225.0Q171 215 171.0 202.5Q171 190 161.0 180.5Q151 171 138.5 171.0Q126 171 116.5 180.5Q107 190 107.0 202.5Q107 215 116.5 225.0Q126 235 139 235ZM203 320Q215 320 225.0 310.5Q235 301 235.0 288.0Q235 275 225.0 265.5Q215 256 202.5 256.0Q190 256 180.5 265.5Q171 275 171.0 288.0Q171 301 180.5 310.5Q190 320 203 320ZM309 320Q322 320 331.5 310.5Q341 301 341.0 288.0Q341 275 331.5 265.5Q322 256 309.5 256.0Q297 256 287.0 265.5Q277 275 277.0 288.0Q277 301 287.0 310.5Q297 320 309 320ZM373 235Q386 235 395.5 225.0Q405 215 405.0 202.5Q405 190 395.5 180.5Q386 171 373.5 171.0Q361 171 351.0 180.5Q341 190 341.0 202.5Q341 215 351.0 225.0Q361 235 373 235Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-pencil-ruler" viewbox="0 0 512 512"><path d="M64 80V0H144L380 236L300 316ZM482 56 392 -34 281 77 319 114 340 93 393 146 423 116 392 85 414 64 445 94ZM141 217 30 328 120 418 158 381 105 328 128 305 180 358 211 328 180 298 202 276ZM442 299Q448 305 448.0 313.5Q448 322 442 329L392 378Q386 384 377.0 384.0Q368 384 362 378L323 339L403 259Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-plus" viewbox="0 0 512 512"><path d="M405 171H277V43H235V171H107V213H235V341H277V213H405Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-restart" viewbox="0 0 512 512"><path d="M256 363Q290 363 321.0 350.0Q352 337 375 314Q408 281 419.5 237.0Q431 193 419.5 149.0Q408 105 375 73Q348 43 309 30Q272 18 233 23L243 66Q271 63 298.0 72.5Q325 82 346 102Q370 127 378.5 159.5Q387 192 378.5 225.5Q370 259 346 284Q328 301 304.0 310.5Q280 320 256 320V222L149 329L256 435ZM134 73Q93 114 86.5 171.5Q80 229 109 279L141 247Q123 212 129.5 171.5Q136 131 166 102Q182 86 205 77L192 34Q160 47 134 73Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-shape-outline" viewbox="0 0 512 512"><path d="M235 160V-11H64V160ZM192 117H107V32H192ZM256 405 373 213H139ZM256 323 215 256H297ZM373 171Q413 171 441.0 143.0Q469 115 469.0 75.0Q469 35 441.0 7.0Q413 -21 373.0 -21.0Q333 -21 305.0 7.0Q277 35 277.0 75.0Q277 115 305.0 143.0Q333 171 373 171ZM373 128Q351 128 335.5 112.5Q320 97 320.0 75.0Q320 53 335.5 37.0Q351 21 373.0 21.0Q395 21 411.0 37.0Q427 53 427.0 75.0Q427 97 411.0 112.5Q395 128 373 128Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-source-pull" viewbox="0 0 512 512"><path d="M128 384Q155 384 173.5 365.5Q192 347 192 320Q192 299 180.0 282.5Q168 266 149 260V124Q168 118 180.0 101.5Q192 85 192 64Q192 37 173.5 18.5Q155 0 128.0 0.0Q101 0 82.5 18.5Q64 37 64 64Q64 85 76.0 101.5Q88 118 107 124V260Q88 266 76.0 282.5Q64 299 64 320Q64 347 82.5 365.5Q101 384 128 384ZM128 341Q119 341 113.0 335.0Q107 329 107.0 320.0Q107 311 113.0 305.0Q119 299 128.0 299.0Q137 299 143.0 305.0Q149 311 149.0 320.0Q149 329 143.0 335.0Q137 341 128 341ZM128 85Q119 85 113.0 79.0Q107 73 107.0 64.0Q107 55 113.0 49.0Q119 43 128.0 43.0Q137 43 143.0 49.0Q149 55 149.0 64.0Q149 73 143.0 79.0Q137 85 128 85ZM448 64Q448 37 429.5 18.5Q411 0 384.0 0.0Q357 0 338.5 18.5Q320 37 320 64Q320 85 332.0 101.5Q344 118 363 124V299H320V229L229 320L320 411V341H363Q380 341 392.5 328.5Q405 316 405 299V124Q424 118 436.0 101.5Q448 85 448 64ZM384 85Q375 85 369.0 79.0Q363 73 363.0 64.0Q363 55 369.0 49.0Q375 43 384.0 43.0Q393 43 399.0 49.0Q405 55 405.0 64.0Q405 73 399.0 79.0Q393 85 384 85Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-tune" viewbox="0 0 512 512"><path d="M64 85V43H192V85ZM64 341V299H277V341ZM277 0V43H448V85H277V128H235V0ZM149 256V213H64V171H149V128H192V256ZM448 171V213H235V171ZM320 256H363V299H448V341H363V384H320Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+<symbol id="mdi-close" viewbox="0 0 512 512"><path d="M405 311 375 341 256 222 137 341 107 311 226 192 107 73 137 43 256 162 375 43 405 73 286 192Z" fill="currentColor" transform="translate(0 448) scale(1 -1)"></path></symbol>
+</svg><div class="shell" id="appShell">
+  <aside class="sidebar" id="appSidebar" aria-label="Workspace navigation">
+    <div class="sidebar-head"><a href="#review" id="brandHome" class="brand"><span class="brand-logo" aria-hidden="true"><svg class="mdi-icon"><use href="#mdi-layers-triple-outline"/></svg></span><span class="brand-name">Design Drift</span></a></div>
+    <div class="workspace-label">WORKSPACE</div>
+    <nav class="nav-wrap" aria-label="Main navigation">
+      <button class="nav-link active" id="navReview" data-tooltip="Changes" aria-label="Changes" type="button"><svg class="mdi-icon"><use href="#mdi-format-list-bulleted"/></svg><span class="nav-text">Changes</span><span class="count" id="navReviewCount">6</span></button>
+      <button class="nav-link" id="navSystems" data-tooltip="Design systems" aria-label="Design systems" type="button"><svg class="mdi-icon"><use href="#mdi-layers-triple-outline"/></svg><span class="nav-text">Design systems</span></button>
+      <button class="nav-link" id="navBuilder" data-tooltip="Builder example" aria-label="Builder example" type="button"><svg class="mdi-icon"><use href="#mdi-pencil-ruler"/></svg><span class="nav-text">Builder example</span></button>
+      <button class="nav-link" id="navChecklist" data-tooltip="Figma checklist" aria-label="Figma checklist" type="button"><svg class="mdi-icon"><use href="#mdi-check-circle-outline"/></svg><span class="nav-text">Figma checklist</span><span class="count" id="navChecklistCount">0</span></button>
+    </nav>
+    <button class="nav-link" id="navConnections" data-tooltip="Connections" aria-label="Connections" type="button" style="margin-top:12px"><svg class="mdi-icon"><use href="#mdi-source-pull"/></svg><span class="nav-text">Connections</span></button>
+    <div class="sidebar-spacer"></div>
+    <div class="side-meta"><span class="side-meta-dot"></span><span class="side-meta-text">Design Drift</span></div>
+    <button id="btnHelp" type="button" class="side-help" data-tooltip="About Design Drift" aria-label="About Design Drift"><svg class="mdi-icon icon-sm"><use href="#mdi-help-circle-outline"/></svg><span class="help-label">About Design Drift</span></button>
+  </aside><div id="sidebarSeparator" class="sidebar-separator" role="separator" tabindex="0" aria-label="Resize sidebar" aria-orientation="vertical" aria-valuemin="72" aria-valuemax="352" aria-valuenow="244" title="Drag to resize sidebar"></div><div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
+  <main class="main">
+    <header class="topbar"><div class="topbar-leading"><button id="sidebarToggle" class="sidebar-toggle-top" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><svg viewBox="0 0 24 24" class="panel-symbol" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg></button><span class="topbar-sep" aria-hidden="true"></span><span class="crumb">Design Drift <svg class="mdi-icon icon-xs"><use href="#mdi-chevron-right"/></svg> <b id="crumbCurrent">Changes</b></span></div><span class="top-note">Code ↔ Design</span></header>
+    <div class="page">
+      <section id="listView" class="dashboard-page">
+        <header class="headline"><div><div class="page-overline">DESIGN DRIFT / REVIEW</div><h1>Design changes</h1><p>Review changes made in code and identify what Figma needs.</p></div><button class="button primary" type="button" id="btnImport"><svg class="mdi-icon icon-sm"><use href="#mdi-source-pull"/></svg> Import pull request</button></header>
+        <section class="metric-grid" aria-label="Review overview">
+          <div class="metric-card metric-featured"><div class="metric-top"><span>Changes detected</span><svg class="mdi-icon"><use href="#mdi-format-list-bulleted"/></svg></div><div class="metric-number" id="metricTotal">6</div><div class="metric-foot"><span class="metric-mini">In the selected review</span><div class="dot-pattern" aria-hidden="true"></div></div></div>
+          <div class="metric-card"><div class="metric-top"><span>Awaiting review</span><svg class="mdi-icon"><use href="#mdi-source-pull"/></svg></div><div class="metric-number" id="metricPending">6</div><div class="metric-foot"><span>Requires a design decision</span><span class="tiny-pulse"></span></div></div>
+          <div class="metric-card"><div class="metric-top"><span>For Figma</span><svg class="mdi-icon"><use href="#mdi-check-circle-outline"/></svg></div><div class="metric-number" id="metricFigma">0</div><div class="metric-foot"><span>Added to the update list</span><span class="metric-link" id="openChecklistMetric" role="button" tabindex="0" aria-label="Open Figma checklist">View list <svg class="mdi-icon icon-xs"><use href="#mdi-chevron-right"/></svg></span></div></div>
+        </section>
+        <div class="workspace-grid"><div class="workspace-primary">
+        <section class="source-strip" aria-label="Source pull request">
+          <div class="source-inner"><span class="source-badge-icon"><svg class="mdi-icon"><use href="#mdi-source-pull"/></svg></span><div class="source-text"><div class="source-title" id="sourceTitle">Learning builder updates · #184</div><div class="source-sub"><span id="sourceRepo">Sample repository</span><span class="dot">·</span><span id="sourceFiles">6 files</span><span class="source-mode" id="sourceMode">Example</span></div></div></div>
+          <button type="button" id="btnSample" class="source-action hidden">Reset example</button>
+        </section>
+        <div class="list-top"><div><div class="section-kicker">Review queue</div><h2 class="list-title" id="queueHeader">6 changes to review</h2></div><div class="progress-group"><span id="progressText">0 of 6 reviewed</span><div class="progress-track" role="progressbar" aria-label="Review progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div></div></div>
+        <div class="tabs-toolbar"><div class="tabs" role="tablist" aria-label="Review filters"><button class="tab active" type="button" data-filter="open" role="tab" aria-selected="true">Needs review <span class="tab-number" id="openCount">6</span></button><button class="tab" type="button" data-filter="all" role="tab" aria-selected="false">All <span class="tab-number" id="allCount">6</span></button></div><div class="tools"><input id="searchInput" class="list-search hidden" type="search" placeholder="Find a change" aria-label="Find a change"/><button id="btnSearch" class="icon-button" type="button" title="Search changes" aria-label="Search changes"><svg class="mdi-icon"><use href="#mdi-magnify"/></svg></button><button id="btnOptions" class="icon-button" type="button" title="More options" aria-label="More options"><svg class="mdi-icon"><use href="#mdi-tune"/></svg></button></div></div>
+        <div class="list-wrap" id="queueList" aria-live="polite"></div>
+        <div class="footnote"><span>Changes are suggested from code. Review before updating Figma.</span><button type="button" class="link-button" id="btnExportList">Export list <svg class="mdi-icon icon-xs"><use href="#mdi-chevron-right"/></svg></button></div>
+        </div><aside class="workspace-aside" aria-label="Current review progress"><div class="aside-label">REVIEW STATUS</div><div class="aside-progress"><div class="progress-circle" id="progressCircle" style="--completion:0%"><div class="circle-inner"><strong id="progressPercent">0%</strong><span>reviewed</span></div></div></div><h3>Review progress</h3><p>Review code changes before applying them to your design system.</p><div class="aside-stats"><div><span>Reviewed</span><strong id="asideReviewed">0</strong></div><div><span>Remaining</span><strong id="asideRemaining">6</strong></div></div><button type="button" class="aside-link" id="asideChecklist">Open Figma checklist <svg class="mdi-icon icon-sm"><use href="#mdi-chevron-right"/></svg></button></aside></div>
+      </section>
+      <section id="detailView" class="hidden">
+        <button class="back" type="button" id="btnBack"><svg class="mdi-icon icon-sm"><use href="#mdi-chevron-right"/></svg> All changes</button>
+        <div class="detail-wrap">
+          <div class="detail-count" id="detailCount">Change 1 of 6</div><h1 id="detailTitle">Button / Primary</h1><p class="detail-sub" id="detailSummary">Button radius changed from 8px to 12px</p>
+          <div class="specimen" id="specimen"></div>
+          <section class="detail-section evidence"><div class="detail-label">Code change</div><div class="values"><div class="value"><div class="value-label">Before</div><div class="value-text" id="detailBefore">8px</div></div><div class="value after"><div class="value-label">After</div><div class="value-text" id="detailAfter">12px</div></div></div></section>
+          <section class="detail-section"><div class="detail-label">Check in Figma</div><div class="figma-target"><span class="figma-target-icon"><svg class="mdi-icon"><use href="#mdi-palette-outline"/></svg></span><div class="figma-copy"><div class="figma-name" id="detailMapping">Buttons / Primary</div><div class="figma-desc" id="detailReason">Check the button radius.</div><div class="figma-desc figma-caption" id="detailMappingNote">Suggested mapping.</div></div></div></section>
+          <details class="code-disclosure" id="codeDisclosure"><summary><span>View code diff</span><svg class="mdi-icon icon-sm"><use href="#mdi-chevron-right"/></svg></summary><div class="code-content"><div class="code-path" id="detailPath"></div><div id="detailCode"></div></div></details>
+          <div id="decisionArea"></div>
+        </div>
+      </section>
+      <section id="checklistView" class="hidden">
+        <header class="headline"><div><h1>Figma checklist</h1><p>Code changes selected for a design update.</p></div><button class="button primary" type="button" id="btnExportChecklist"><svg class="mdi-icon icon-sm"><use href="#mdi-download"/></svg> Export list</button></header>
+        <div class="list-top"><div><div class="section-kicker">Selected updates</div><h2 class="list-title" id="checklistCountTitle">0 updates</h2></div></div>
+        <div id="checklistList" class="checklist-list"></div><div class="check-footnote">This list doesn't edit Figma. Verify the component mappings before making changes.</div>
+      </section>
+
+      <section id="systemsView" class="hidden section-page">
+        <header class="section-heading"><div><p class="section-overline">LIBRARIES</p><h1>Design systems</h1><p>Review component updates against a mapped Figma library.</p></div></header>
+        <div class="systems-grid">
+          <article class="system-tile"><div class="system-mark penny">P</div><div class="system-info"><div class="tile-kicker">PENNY · TEST LIBRARY</div><h2>Penny UI kit</h2><p>Primary button, color tokens, and component states derived from your original design system.</p><div class="system-tags"><span>Figma test file</span><span>GitHub tokens</span></div></div><div class="tile-actions"><button class="button primary" data-open-system="penny">Review code changes</button><a class="button" href="https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha" target="_blank" rel="noreferrer">Open Figma</a></div></article>
+          <article class="system-tile"><div class="system-mark learning"><svg class="mdi-icon"><use href="#mdi-pencil-ruler"/></svg></div><div class="system-info"><div class="tile-kicker">EDUCATION · EXAMPLE</div><h2>Learning builder</h2><p>A teaching-assistant builder example for exploring review and component consistency.</p><div class="system-tags"><span>Interactive example</span><span>Independent concept</span></div></div><div class="tile-actions"><button class="button primary" data-open-system="learning">Review example changes</button><button class="button" id="systemsBuilder">Open builder</button></div></article>
+        </div>
+      </section>
+      <section id="builderView" class="hidden section-page">
+        <header class="section-heading"><div><p class="section-overline">EDUCATOR EXPERIENCE</p><h1>Learning builder</h1><p>An independent example of an AI assistant builder for educators.</p></div><button class="button" id="builderFigma" type="button">View Figma study</button></header>
+        <div class="builder-layout"><div class="builder-panel"><div class="builder-label">NEW ASSISTANT</div><h2>Create an assistant</h2><p>Define what students should learn and how the assistant should respond.</p><label for="builderGoal">Learning goal</label><input id="builderGoal" type="text" value="Help students understand fractions"><label for="builderGuidance">How should it guide students?</label><textarea id="builderGuidance">Ask what they've tried before offering a hint. Don't provide the full solution first.</textarea><button class="button primary" id="builderPreview" type="button">Preview assistant</button><div class="builder-feedback" id="builderFeedback" role="status" aria-live="polite"></div></div><aside class="builder-aside"><div class="builder-label">COMPONENT COMPARISON</div><h3>Primary button</h3><p>Test how a button change moves between code and Figma.</p><div class="switch-tabs" role="group" aria-label="Preview version"><button class="active" data-version="before" type="button">Figma version</button><button data-version="after" type="button">Code version</button></div><div class="preview-surface"><button id="livePennyButton" class="live-penny-button" type="button">Create assistant</button></div><div class="preview-properties"><span>Border radius</span><strong id="builderRadius">2px</strong></div><div class="preview-properties"><span>Primary color</span><strong>#008254</strong></div><button class="button" id="builderReviewChange" type="button">Review this change</button></aside></div>
+      </section>
+      <section id="connectionsView" class="hidden section-page">
+        <header class="section-heading"><div><p class="section-overline">WORKSPACE SETUP</p><h1>Connections</h1><p>Review GitHub changes and apply approved token updates in Figma.</p></div></header>
+        <div class="connection-grid">
+          <div class="connection-tile"><div class="connection-icon"><svg class="mdi-icon"><use href="#mdi-source-pull"/></svg></div><h2>GitHub</h2><p>Analyze a public pull request, or inspect the versioned Penny token file.</p><a class="button" href="https://github.com/mail2tarunv-cpu/tarun-portfolio/tree/experiment/design-drift/experiments/design-drift" target="_blank" rel="noreferrer">View source repository</a><a class="text-link" href="sync/penny.tokens.json" target="_blank">Open token snapshot</a></div>
+          <div class="connection-tile"><div class="connection-icon"><svg class="mdi-icon"><use href="#mdi-palette-outline"/></svg></div><h2>Figma</h2><p>Open the isolated Penny test file. A local Figma plugin compares mapped variables with a GitHub token file. Updates require approval.</p><a class="button" href="https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha" target="_blank" rel="noreferrer">Open test file</a><a class="text-link" href="https://github.com/mail2tarunv-cpu/tarun-portfolio/tree/experiment/design-drift/experiments/design-drift/figma-plugin" target="_blank" rel="noreferrer">View plugin source</a></div>
+        </div><div class="setup-notes"><strong>Setup</strong><p>In Figma Desktop: Plugins → Development → Import plugin from manifest. Select <code>manifest.json</code> from the plugin source folder. Open the test file, launch Design Drift Sync, compare, then apply the update. To propose Figma token values back to GitHub, use the plugin to create a reviewable pull request with a fine-grained GitHub token.</p><p>The development plugin synchronizes selected tokens in the isolated test file. It does not regenerate component structures or support private repositories and unattended background sync.</p></div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="modal-root" id="modalRoot" aria-hidden="true"></div><div class="toast" id="toast" role="status" aria-live="polite"></div><script>
+
+/* Design Drift — a code-first, review-first experiment.
+   Live imports use GitHub's public pull-request files endpoint. No tokens,
+   private repositories or Figma writes are performed by this prototype. */
+const DEMO = [
+  {id:'button-radius',name:'Button / Primary',kind:'component',file:'src/components/Button.tsx',change:'Button radius changed from 8px to 12px',before:'8px',after:'12px',mapping:'Buttons / Primary',mappingKind:'Sample mapping',confidence:'Code difference',reason:'Check the Primary button radius in the Figma library.',diff:["  base: {", "-   borderRadius: '8px',", "+   borderRadius: '12px',", "    minHeight: '40px',", "  }"],status:'open'},
+  {id:'color-accent',name:'Color / Accent',kind:'token',file:'src/styles/tokens.css',change:'Accent color changed',before:'#6B63D9',after:'#5A755E',mapping:'Color / Accent',mappingKind:'Sample mapping',confidence:'Code difference',reason:'Check the Accent color variable and components that use it.',diff:["  :root {", "-   --color-accent: #6B63D9;", "+   --color-accent: #5A755E;", "    --color-ink: #242924;", "  }"],status:'open'},
+  {id:'input-error',name:'Input / Error',kind:'state',file:'src/components/TextField.tsx',change:'Error state added',before:'No state',after:'Error',mapping:'Fields / Text input',mappingKind:'Sample mapping',confidence:'Check variant',reason:'Check whether the text field needs an Error variant and supporting documentation.',diff:["  const states = {", "    default: 'neutral',", "+   error: 'invalid',", "+   errorMessage: 'Check this field',", "  }"],status:'open'},
+  {id:'card-space',name:'Card / Container',kind:'component',file:'src/components/Panel.tsx',change:'Card padding changed from 16px to 24px',before:'16px',after:'24px',mapping:'Surfaces / Card',mappingKind:'Sample mapping',confidence:'Code difference',reason:'Check the Card component padding and spacing guidelines.',diff:["  const panelStyle = {", "-   padding: '16px',", "+   padding: '24px',", "    background: 'surface',", "  }"],status:'open'},
+  {id:'text-line',name:'Typography / Caption',kind:'token',file:'src/styles/type.css',change:'Caption line height changed from 1.35 to 1.5',before:'1.35',after:'1.5',mapping:'Type / Caption',mappingKind:'Sample mapping',confidence:'Code difference',reason:'Check the Caption text style line height.',diff:["  .caption {", "    font-size: 12px;", "-   line-height: 1.35;", "+   line-height: 1.5;", "  }"],status:'open'},
+  {id:'tooltip-new',name:'Tooltip / Delay',kind:'unknown',file:'src/components/Tooltip.tsx',change:'Tooltip delay changed to 250ms',before:'Immediate',after:'250ms',mapping:'Unmapped',mappingKind:'No mapping',confidence:'Review needed',reason:'Check the tooltip interaction specification. A Figma component update may not be necessary.',diff:["  function showTooltip() {", "-   openTooltip();", "+   setTimeout(openTooltip, 250);", "  }"],status:'open'}
+];
+const PENNY_DEMO = [
+{id:'penny-radius',name:'Penny / Primary button',kind:'component',file:'examples/penny-button.css',change:'Button radius changed from 2px to 12px',before:'2px',after:'12px',mapping:'Penny / Button / Primary',mappingKind:'Mapped to test file',confidence:'Mapped token',reason:'Apply radius/button in the isolated Figma test file.',diff:['- --penny-button-radius: 2px;','+ --penny-button-radius: 12px;'],status:'open'},
+
+];
+const styleKeys=[{re:/(?:--[\w-]+|border-radius|borderradius|padding|margin|gap|font-size|fontsize|line-height|lineheight|background-color|backgroundcolor|box-shadow|boxshadow|color|opacity|width|height)\s*[:=]\s*['"]?([^;'",}]+)/ig}];
+const propertyName=line=>{const m=line.match(/([\w-]+)\s*[:=]\s*['"]?([^;'",}]+)/);return m&&m[1].toLowerCase()};
+const propertyValue=line=>{const m=line.match(/[=:]\s*['"]?([^;'",}]+)/);return m?m[1].trim().replace(/['"]\s*$/,'').slice(0,34):''};
+const isVisualPath=name=>/\.(css|scss|sass|less|tsx|jsx|vue|svelte)$/i.test(name)||/(components?|styles?|tokens?|themes?|design)/i.test(name);
+const classify=(prop,file)=>{const p=prop.toLowerCase();if(p.startsWith('--')||/tokens?|themes?/i.test(file))return'token';if(/error|loading|disabled|selected|hover|focus|variant/i.test(p))return'state';return'component'};
+function analyzeFiles(files){const results=[];let idx=0;for(const file of files){if(!isVisualPath(file.filename))continue;const patch=String(file.patch||'');if(!patch)continue;const lines=patch.split('\n'),removed=lines.filter(l=>l.startsWith('-')&&!l.startsWith('---')).map(l=>l.slice(1)),added=lines.filter(l=>l.startsWith('+')&&!l.startsWith('+++')).map(l=>l.slice(1));const oldProps=new Map(),newProps=new Map();for(const line of removed){const key=propertyName(line);if(key)oldProps.set(key,{value:propertyValue(line),line});}for(const line of added){const key=propertyName(line);if(key)newProps.set(key,{value:propertyValue(line),line});}
+  let perFile=0;for(const [key,old] of oldProps){if(!newProps.has(key))continue;const newer=newProps.get(key);if(old.value===newer.value)continue;if(!/(?:--|radius|padding|margin|gap|font|height|width|background|color|shadow|opacity|border|spacing|size|stroke)/i.test(key))continue;const base=displayName(file.filename);const kind=classify(key,file.filename);const isToken=key.startsWith('--');results.push({id:'live-'+idx++,name:isToken?key:base+' / '+key.replace(/([a-z])([A-Z])/g,'$1 $2'),kind,file:file.filename,change:'Style value changed',before:old.value||'Previous',after:newer.value||'Updated',mapping:isToken?'Variable / '+key:base+' (suggested)',mappingKind:'Suggested',confidence:'Code difference',reason:'This value changed in code. Check the matching component or token in Figma.',diff:[`- ${old.line.trim()}`,`+ ${newer.line.trim()}`],status:'open'});perFile++;if(perFile>=7)break;}
+  if(perFile===0){const lineAdded=added.find(l=>/(?:className|class=|variant|error|loading|hover|focus|rounded-|bg-|text-|p-[0-9]|gap-[0-9]|transition|animation|setTimeout)/i.test(l));const lineRemoved=removed.find(l=>/(?:className|class=|variant|error|loading|hover|focus|rounded-|bg-|text-|p-[0-9]|gap-[0-9]|transition|animation|setTimeout)/i.test(l));if(lineAdded||lineRemoved){const base=displayName(file.filename);results.push({id:'live-'+idx++,name:base+' / behavior or classes',kind:'state',file:file.filename,change:'Possible component behavior change',before:'See diff',after:'Review',mapping:base+' (suggested)',mappingKind:'No mapping',confidence:'Review needed',reason:'A class or behavior changed. Check whether Figma documentation or variants need updating.',diff:[...(lineRemoved?[`- ${lineRemoved.trim()}`]:[]),...(lineAdded?[`+ ${lineAdded.trim()}`]:[])],status:'open'});}}
+ if(results.length>=35)break;}
+ return results;}
+function parsePR(value){try{const u=new URL(value.trim());if(u.hostname!=='github.com'&&u.hostname!=='www.github.com')return null;const s=u.pathname.split('/').filter(Boolean);if(s.length<4||s[2]!=='pull'||!/^[1-9]\d*$/.test(s[3]))return null;return {owner:s[0],repo:s[1],number:s[3]};}catch{return null;}}
+
+const displayName=file=>{const stem=(file.split('/').pop()||'Component').replace(/\.(tsx|jsx|js|ts|css|scss|vue|svelte)$/i,'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[-_]/g,' ');return stem.replace(/\b\w/g,c=>c.toUpperCase());};
+let items=structuredClone(PENNY_DEMO);
+let selectedId=null,view='review',previousView='review',filter='open',query='',mode='demo';
+let sourceTitle='Penny button study',sourceNumber='01',sourceRepo='Penny test scenario',sourceFiles=2;
+const $=id=>document.getElementById(id);
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon=(name,cls='')=>`<svg class="mdi-icon ${cls}" aria-hidden="true" focusable="false"><use href="#mdi-${name}"></use></svg>`;
+const kindIcons={component:'shape-outline',token:'palette-outline',state:'tune',unknown:'help-circle-outline'};
+const openItems=()=>items.filter(i=>i.status==='open');
+const checklistItems=()=>items.filter(i=>i.status==='checklist');
+let toastTimeout;
+function toast(message){const t=$('toast');t.textContent=message;t.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.remove('show'),2800)}
+function setView(name){view=name;for(const v of ['list','detail','checklist','systems','builder','connections'])$(v+'View').classList.toggle('hidden',(name==='review'?'list':name)!==v);for(const [id,active] of [['navReview',name==='review'||name==='detail'&&previousView==='review'],['navChecklist',name==='checklist'||name==='detail'&&previousView==='checklist'],['navSystems',name==='systems'],['navBuilder',name==='builder'],['navConnections',name==='connections']])$(id)?.classList.toggle('active',active);$('crumbCurrent').textContent=({review:'Changes',detail:'Change details',checklist:'Figma checklist',systems:'Design systems',builder:'Learning builder',connections:'Connections'})[name]||'Changes';if(name==='review')renderList();if(name==='checklist')renderChecklist();window.scrollTo({top:0,behavior:'instant'});}
+function updateCounts(){const left=openItems().length,approved=checklistItems().length,reviewed=items.length-left;
+ $('navReviewCount').textContent=left;$('navChecklistCount').textContent=approved;$('openCount').textContent=left;$('allCount').textContent=items.length;
+ $('queueHeader').textContent=left?`${left} ${left===1?'change':'changes'} to review`:'Review complete';$('progressText').textContent=`${reviewed} of ${items.length} reviewed`;
+ const percent=items.length?Math.round(reviewed/items.length*100):0;$('progressFill').style.width=percent+'%';$('progressBar').setAttribute('aria-valuenow',percent);
+ $('checklistCountTitle').textContent=`${approved} ${approved===1?'update':'updates'} to make`;
+ $('metricTotal').textContent=items.length;$('metricPending').textContent=left;$('metricFigma').textContent=approved;$('asideReviewed').textContent=reviewed;$('asideRemaining').textContent=left;$('progressPercent').textContent=percent+'%';$('progressCircle').style.setProperty('--completion',percent+'%');
+}
+function renderSource(){const title=$('sourceTitle');title.textContent=sourceTitle+' · #'+sourceNumber;$('sourceRepo').textContent=sourceRepo;$('sourceFiles').textContent=sourceFiles+' '+(sourceFiles===1?'file':'files');$('sourceMode').textContent=mode==='demo'?'Sample data':'Public PR';$('btnSample').classList.toggle('hidden',mode==='demo');}
+function visibleItems(){return items.filter(i=>(filter==='all'||i.status==='open')&&(`${i.name} ${i.change} ${i.file} ${i.mapping}`).toLowerCase().includes(query.toLowerCase()));}
+function renderList(){updateCounts();renderSource();document.querySelectorAll('[data-filter]').forEach(btn=>{const active=btn.dataset.filter===filter;btn.classList.toggle('active',active);btn.setAttribute('aria-selected',active?'true':'false')});const shown=visibleItems();
+ const list=$('queueList');if(!shown.length){const noOpen=filter==='open'&&!query;list.innerHTML=`<div class="empty"><div class="empty-icon">${icon(noOpen?'check-circle-outline':'magnify')}</div><h3>${noOpen?'All changes reviewed':'No matching changes'}</h3><p>${noOpen?'Your decisions are ready. Open the checklist to see the updates you selected.':'Try a different search or view all changes.'}</p>${noOpen?'<button class="button primary" type="button" id="emptyChecklist">View Figma checklist</button>':''}</div>`;list.querySelector('#emptyChecklist')?.addEventListener('click',()=>setView('checklist'));return;}
+ list.innerHTML=shown.map(item=>{const summary=item.change.replace(/\.$/,'');const status=item.status==='checklist'?'In checklist':item.status==='ignored'?'No update':'Review';return `<button type="button" class="change-row" data-id="${escapeHtml(item.id)}"><span class="row-icon">${icon(kindIcons[item.kind]||'shape-outline')}</span><span class="row-main"><span class="row-name">${escapeHtml(item.name)}</span><span class="row-detail">${escapeHtml(summary)}</span></span>${filter==='all'?`<span class="row-meta">${status}</span>`:''}${icon('chevron-right','row-arrow')}</button>`}).join('');}
+function openDetail(id,from='review'){const item=items.find(i=>i.id===id);if(!item)return;selectedId=id;previousView=from;renderDetail();setView('detail');}
+function renderDetail(){const item=items.find(i=>i.id===selectedId);if(!item){setView(previousView);return;}const index=items.findIndex(i=>i.id===item.id)+1;$('detailCount').textContent=`Change ${index} of ${items.length}`;$('detailTitle').textContent=item.name;$('detailSummary').textContent=item.change;$('detailBefore').textContent=item.before;$('detailAfter').textContent=item.after;$('detailMapping').textContent=item.mapping;$('detailReason').textContent=item.reason;$('detailMappingNote').textContent=(mode==='demo'?'Penny test-file mapping.':'Mapping inferred from code.')+' Figma has not been checked.';$('detailPath').textContent=item.file;renderSpecimen(item);
+ $('detailCode').innerHTML=item.diff.map(line=>`<span class="code-line ${line.startsWith('+')?'add':line.startsWith('-')?'del':'ctx'}">${escapeHtml(line)}</span>`).join('');$('codeDisclosure').open=false;
+ const el=$('decisionArea');if(item.status==='open'){el.innerHTML=`<div class="detail-actions"><button class="button primary" id="acceptChange" type="button">${icon('check','icon-sm')} Add to checklist</button><button class="button quiet" id="skipChange" type="button">No Figma update needed</button></div><div class="action-note">No Figma file is changed.</div>`;el.querySelector('#acceptChange').addEventListener('click',()=>decide('checklist'));el.querySelector('#skipChange').addEventListener('click',()=>decide('ignored'));}
+ else{const selected=item.status==='checklist';el.innerHTML=`<div class="decision-resolved ${selected?'':'skipped'}">${icon(selected?'check-circle-outline':'minus-circle-outline')} <span>${selected?'Added to Figma checklist':'No Figma update needed'}</span><button class="button" type="button" id="undoDecision">Change decision</button></div><div class="action-note">Figma remains unchanged.</div>`;el.querySelector('#undoDecision').addEventListener('click',()=>decide('open',false));}}
+function decide(next,autoNext=true){const item=items.find(i=>i.id===selectedId);if(!item)return;item.status=next;updateCounts();if(next==='checklist')toast('Added to checklist');if(next==='ignored')toast('Marked as no update needed');if(next==='open')toast('Moved back to review');if(autoNext){const nextOpen=openItems()[0];if(nextOpen){openDetail(nextOpen.id,'review');}else{setView('checklist');}}else{renderDetail();}}
+function renderChecklist(){updateCounts();const rows=checklistItems();$('checklistList').innerHTML=rows.length?rows.map(item=>`<button type="button" class="check-row" data-id="${escapeHtml(item.id)}"><span class="row-icon">${icon(kindIcons[item.kind]||'shape-outline')}</span><span class="row-main"><span class="row-name">${escapeHtml(item.name)}</span><span class="row-detail">${escapeHtml(item.reason)}</span></span><span class="check-status">Needs update</span>${icon('chevron-right','row-arrow')}</button>`).join(''):`<div class="empty"><div class="empty-icon">${icon('format-list-bulleted')}</div><h3>No Figma updates yet</h3><p>Review code changes and add the ones that need updates in Figma.</p><button class="button" id="fromEmpty" type="button">Review changes</button></div>`;$('checklistList').querySelector('#fromEmpty')?.addEventListener('click',()=>setView('review'));}
+function exportChecklist(){const chosen=checklistItems();if(!chosen.length){toast('Add a change to your checklist first');return;}const text=['# Figma update checklist','','Source: '+sourceTitle+' #'+sourceNumber+' ('+sourceRepo+')','Generated: '+new Date().toLocaleString(),'','Each item requires manual verification in Figma.','',...chosen.flatMap((i,n)=>[`${n+1}. ${i.name}`,'   - Code: '+i.file,'   - Change: '+i.change,'   - Figma: '+i.mapping,'   - Action: '+i.reason,''])].join('\n');const blob=new Blob([text],{type:'text/markdown;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='figma-updates.md';link.click();setTimeout(()=>URL.revokeObjectURL(url),1200);toast('Checklist exported');}
+function showModal(inner){const root=$('modalRoot');root.classList.add('open');root.setAttribute('aria-hidden','false');root.innerHTML=`<div class="overlay" data-close="1"></div><section class="modal" role="dialog" aria-modal="true" aria-label="Design Drift dialog">${inner}</section>`;root.querySelector('input')?.focus();}
+function closeModal(){const root=$('modalRoot');root.classList.remove('open');root.setAttribute('aria-hidden','true');root.innerHTML='';}
+function openImport(){showModal(`<div class="modal-header"><h2>Import a pull request</h2><button type="button" class="icon-button" data-close="1" aria-label="Close">${icon('close')}</button></div><p>Paste a public GitHub pull request to find changes to styles, components, and states.</p><label class="form-label" for="prInput">GitHub pull request URL</label><input class="url-input" id="prInput" type="url" placeholder="https://github.com/owner/repo/pull/123" spellcheck="false"><div class="modal-error" id="prError" role="alert"></div><div class="modal-foot"><span class="modal-note">Public repositories only · No login needed</span><button class="button primary" type="button" id="btnAnalyze">Find changes</button></div>`);$('btnAnalyze').addEventListener('click',analyzeUrl);$('prInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyzeUrl()});}
+function openHelp(){showModal(`<div class="modal-header"><h2>How Design Drift works</h2><button type="button" class="icon-button" data-close="1" aria-label="Close">${icon('close')}</button></div><p>Code-first teams often update components without making the same changes in Figma. This experiment helps track what needs attention.</p><div class="about-step"><span class="about-number">1</span><div><b>Import a pull request</b><p>Start with a public PR or explore the sample changes.</p></div></div><div class="about-step"><span class="about-number">2</span><div><b>Review each suggestion</b><p>Check the before and after values, then decide whether Figma needs an update.</p></div></div><div class="about-step"><span class="about-number">3</span><div><b>Export the checklist</b><p>Download the selected updates for someone to make in Figma.</p></div></div><div class="about-caution">This is a review prototype, not a Figma integration. It doesn't read or edit Figma. Sample mappings are illustrative, and GitHub suggestions are rule-based.</div>`);}
+function openOptions(){showModal(`<div class="modal-header"><h2>Review options</h2><button type="button" class="icon-button" data-close="1" aria-label="Close">${icon('close')}</button></div><div style="display:grid;gap:9px"><button type="button" class="button" id="modalExport">${icon('download','icon-sm')} Export checklist</button><button type="button" class="button" id="modalReset">${icon('restart','icon-sm')} Reset sample</button><button type="button" class="button" id="modalHelp">${icon('help-circle-outline','icon-sm')} How it works</button></div>`);$('modalExport').addEventListener('click',()=>{closeModal();exportChecklist()});$('modalReset').addEventListener('click',()=>{closeModal();resetSample()});$('modalHelp').addEventListener('click',openHelp);}
+function resetSample(){selectSystem('penny');}
+async function analyzeUrl(){const parsed=parsePR($('prInput').value);if(!parsed){$('prError').textContent='Enter a valid public GitHub pull request link.';return;}const btn=$('btnAnalyze');btn.disabled=true;btn.textContent='Checking…';$('prError').textContent='';try{const base=`https://api.github.com/repos/${encodeURIComponent(parsed.owner)}/${encodeURIComponent(parsed.repo)}/pulls/${parsed.number}`;const [prRes,filesRes]=await Promise.all([fetch(base,{headers:{Accept:'application/vnd.github+json'}}),fetch(base+'/files?per_page=100',{headers:{Accept:'application/vnd.github+json'}})]);if(!prRes.ok||!filesRes.ok){throw new Error(prRes.status===404||filesRes.status===404?'Pull request is private or could not be found.':prRes.status===403||filesRes.status===403?'GitHub request limit reached. Try again later.':'Could not read this pull request.');}const [pr,files]=await Promise.all([prRes.json(),filesRes.json()]);if(!Array.isArray(files))throw new Error('GitHub returned an unexpected response.');const detected=analyzeFiles(files);if(!detected.length)throw new Error('No supported design changes were found in the first 100 files.');items=detected;mode='live';sourceTitle=pr.title||'Imported changes';sourceNumber=parsed.number;sourceRepo=parsed.owner+'/'+parsed.repo;sourceFiles=files.length;query='';filter='open';$('searchInput').value='';closeModal();setView('review');toast(`Found ${items.length} ${items.length===1?'change':'changes'} to review`);}catch(error){$('prError').textContent=error?.message||'Could not import this PR.';}finally{const b=$('btnAnalyze');if(b){b.disabled=false;b.textContent='Find changes';}}}
+
+function renderSpecimen(item){
+ const el=$('specimen');if(!el)return;
+ const sample=mode==='demo';el.classList.toggle('hidden',!sample);
+ if(!sample){el.innerHTML='';return;}
+ const stage=(label,inside)=>`<div class="spec-col"><div class="spec-label">${label}</div><div class="spec-stage">${inside}</div></div>`;
+ let before='',after='';
+ switch(item.id){
+ case 'penny-radius':before=`<button class="spec-button" style="background:#008254;border-radius:2px" tabindex="-1">Continue</button>`;after=`<button class="spec-button" style="background:#008254;border-radius:12px" tabindex="-1">Continue</button>`;break;
+ case 'button-radius':before=`<button class="spec-button" style="border-radius:8px" tabindex="-1">Continue</button>`;after=`<button class="spec-button" style="border-radius:12px" tabindex="-1">Continue</button>`;break;
+ case 'penny-green':before=`<div class="swatch" style="background:#008254"></div>`;after=before;break;
+ case 'penny-spacing':before=`<div class="spec-card" style="padding:12px"><strong>Penny spacing</strong></div>`;after=before;break;
+ case 'color-accent':before=`<div class="swatch" style="background:#6b63d9"></div>`;after=`<div class="swatch" style="background:#5a755e"></div>`;break;
+ case 'input-error':before=`<label class="spec-field">Email <input disabled placeholder="name@example.com"></label>`;after=`<label class="spec-field spec-error">Email <input disabled value="invalid@email"/><span>Enter a valid email address</span></label>`;break;
+ case 'card-space':before=`<div class="spec-card" style="padding:16px"><strong>Account settings</strong><small>Manage your preferences</small></div>`;after=`<div class="spec-card" style="padding:24px"><strong>Account settings</strong><small>Manage your preferences</small></div>`;break;
+ case 'text-line':before=`<p class="spec-caption" style="line-height:1.35">A short caption that appears beneath an image or chart in the product.</p>`;after=`<p class="spec-caption" style="line-height:1.5">A short caption that appears beneath an image or chart in the product.</p>`;break;
+ default:before=`<div class="behavior-pill">Appears immediately</div>`;after=`<div class="behavior-pill">Appears after 250ms</div>`;
+ }
+ el.innerHTML=`<div class="spec-top"><span>Component example</span><span class="spec-caveat">Illustrative, not a live render</span></div><div class="spec-grid">${stage('Before',before)}${stage('After',after)}</div>`;
+}
+
+
+function selectSystem(id){
+ items=structuredClone(id==='penny'?PENNY_DEMO:DEMO);
+ mode='demo';sourceTitle=id==='penny'?'Penny button study':'Learning builder study';sourceNumber=id==='penny'?'01':'02';sourceRepo=id==='penny'?'Penny test scenario':'Learning builder example';sourceFiles=id==='penny'?2:6;
+ filter='open';query='';$('searchInput').value='';setView('review');toast(id==='penny'?'Penny test loaded':'Learning builder study loaded');
+}
+$('navSystems').addEventListener('click',()=>setView('systems'));
+$('navBuilder').addEventListener('click',()=>setView('builder'));
+$('navConnections').addEventListener('click',()=>setView('connections'));
+document.querySelectorAll('[data-open-system]').forEach(el=>el.addEventListener('click',()=>selectSystem(el.dataset.openSystem)));
+$('systemsBuilder').addEventListener('click',()=>setView('builder'));
+$('builderFigma').addEventListener('click',()=>window.open('https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha','_blank','noopener'));
+$('builderPreview').addEventListener('click',()=>{const goal=$('builderGoal').value.trim(),guidance=$('builderGuidance').value.trim();$('builderFeedback').textContent=goal&&guidance?'Local preview ready: '+goal:'Enter a learning goal and guidance to continue.';});
+document.querySelectorAll('[data-version]').forEach(el=>el.addEventListener('click',()=>{document.querySelectorAll('[data-version]').forEach(b=>b.classList.toggle('active',b===el));const changed=el.dataset.version==='after';$('livePennyButton').style.borderRadius=(changed?12:2)+'px';$('builderRadius').textContent=(changed?12:2)+'px';}));
+$('builderReviewChange').addEventListener('click',()=>{selectSystem('penny');openDetail('penny-radius','review')});
+
+$('navReview').addEventListener('click',()=>setView('review'));
+$('navChecklist').addEventListener('click',()=>setView('checklist'));
+$('brandHome').addEventListener('click',e=>{e.preventDefault();setView('review')});
+$('btnImport').addEventListener('click',openImport);
+$('btnHelp').addEventListener('click',openHelp);
+$('btnOptions').addEventListener('click',openOptions);
+$('btnSample').addEventListener('click',resetSample);
+$('btnExportList').addEventListener('click',exportChecklist);
+$('btnExportChecklist').addEventListener('click',exportChecklist);
+$('asideChecklist').addEventListener('click',()=>setView('checklist'));$('openChecklistMetric').addEventListener('click',()=>setView('checklist'));$('openChecklistMetric').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setView('checklist')}});
+$('btnBack').addEventListener('click',()=>setView(previousView));
+$('btnSearch').addEventListener('click',()=>{const el=$('searchInput');el.classList.toggle('hidden');if(!el.classList.contains('hidden'))el.focus();else{query='';el.value='';renderList();}});
+$('searchInput').addEventListener('input',e=>{query=e.target.value;renderList()});
+document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter;renderList()}));
+$('queueList').addEventListener('click',e=>{const btn=e.target.closest('[data-id]');if(btn)openDetail(btn.dataset.id,'review')});
+$('checklistList').addEventListener('click',e=>{const btn=e.target.closest('[data-id]');if(btn)openDetail(btn.dataset.id,'checklist')});
+$('modalRoot').addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('modalRoot').classList.contains('open'))closeModal();else if(view==='detail')setView(previousView);else if(!query&&view==='review')$('searchInput').classList.add('hidden');}if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)&&view==='review'){e.preventDefault();$('searchInput').classList.remove('hidden');$('searchInput').focus();}});
+renderSource();setView('review');
+
+/* Sidebar behaviour modeled on the provided collapsible/resizable navigation reference.
+   Uses existing Material iconography; no navigation content is generated by this script. */
+(function(){
+  const shell=document.getElementById('appShell');
+  const separator=document.getElementById('sidebarSeparator');
+  const toggle=document.getElementById('sidebarToggle');
+  const collapse=null;
+  const scrim=document.getElementById('sidebarScrim');
+  const nav=document.querySelectorAll('.sidebar .nav-link,.sidebar .side-help,.sidebar .brand');
+  const COLLAPSED=72, MIN=204, MAX=352, SNAP=155;
+  let expandedWidth=244,collapsed=false,dragging=false,pointerId=null,beforeDragWidth=244;
+  const mobile=()=>window.matchMedia('(max-width:760px)').matches;
+  try{const x=Number(localStorage.getItem('design-drift-sidebar-width'));if(Number.isFinite(x)&&x>=MIN&&x<=MAX)expandedWidth=x;collapsed=localStorage.getItem('design-drift-sidebar-collapsed')==='true';}catch(_e){}
+  function store(){try{localStorage.setItem('design-drift-sidebar-width',String(expandedWidth));localStorage.setItem('design-drift-sidebar-collapsed',String(collapsed));}catch(_e){}}
+  function apply(animate=true){
+    if(!animate)shell.classList.add('is-resizing');
+    shell.classList.toggle('is-collapsed',collapsed);
+    shell.style.setProperty('--sidebar-width', (collapsed?COLLAPSED:expandedWidth)+'px');
+    const label=(mobile()?(shell.classList.contains('mobile-open')?'Close navigation':'Open navigation'):(collapsed?'Expand sidebar':'Collapse sidebar'));
+    toggle.setAttribute('aria-label',label);toggle.title=label;
+    toggle.setAttribute('aria-expanded',String(mobile()?shell.classList.contains('mobile-open'):!collapsed));
+
+    separator.setAttribute('aria-valuenow',String(collapsed?COLLAPSED:expandedWidth));
+    separator.setAttribute('aria-valuetext',collapsed?'Collapsed':`${expandedWidth} pixels`);
+    if(!animate)requestAnimationFrame(()=>{if(!dragging)shell.classList.remove('is-resizing')});
+  }
+  function closeMobile(){shell.classList.remove('mobile-open');document.body.classList.remove('nav-open');apply()}
+  function toggleSidebar(){
+    if(mobile()){shell.classList.toggle('mobile-open');document.body.classList.toggle('nav-open',shell.classList.contains('mobile-open'));}
+    else collapsed=!collapsed;
+    store();apply();
+  }
+  toggle.addEventListener('click',toggleSidebar);
+
+  scrim.addEventListener('click',closeMobile);
+  nav.forEach(el=>el.addEventListener('click',()=>{if(mobile())closeMobile()}));
+  function updateDrag(e){
+    const rect=separator.getBoundingClientRect();separator.style.setProperty('--drag-y',Math.max(72,Math.min(rect.height-72,e.clientY-rect.top))+'px');
+    const w=e.clientX-shell.getBoundingClientRect().left;
+    // Continuous resize is intentional. Collapse only at pointer release (like the reference).
+    collapsed=false;
+    expandedWidth=Math.max(COLLAPSED,Math.min(MAX,Math.round(w)));
+    shell.dataset.dragWidth=String(expandedWidth); shell.style.setProperty('--nav-visibility',Math.max(0,Math.min(1,(expandedWidth-92)/94)).toFixed(3));
+    apply(false);
+  }
+  separator.addEventListener('pointermove',e=>{const rect=separator.getBoundingClientRect();separator.style.setProperty('--drag-y',Math.max(72,Math.min(rect.height-72,e.clientY-rect.top))+'px')});
+  separator.addEventListener('pointerdown',e=>{
+    if(mobile()||e.button!==0)return;
+    e.preventDefault();dragging=true;beforeDragWidth=collapsed?expandedWidth:Math.max(MIN,expandedWidth);pointerId=e.pointerId;
+    shell.classList.add('is-resizing');separator.setPointerCapture(e.pointerId);updateDrag(e);
+  });
+  separator.addEventListener('pointermove',e=>{if(dragging&&e.pointerId===pointerId)updateDrag(e)});
+  const endDrag=e=>{
+    if(!dragging||e.pointerId!==pointerId)return;
+    dragging=false;pointerId=null;
+    if(expandedWidth<SNAP){collapsed=true;expandedWidth=beforeDragWidth;}else{collapsed=false;expandedWidth=Math.max(MIN,expandedWidth);}
+    shell.classList.remove('is-resizing');shell.style.removeProperty('--nav-visibility');store();apply();
+  };
+  separator.addEventListener('pointerup',endDrag);
+  separator.addEventListener('pointercancel',endDrag);
+  separator.addEventListener('lostpointercapture',()=>{if(dragging){dragging=false;shell.classList.remove('is-resizing');store();apply()}});
+  separator.addEventListener('keydown',e=>{
+    if(mobile())return;
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+    e.preventDefault();
+    if(e.key==='Home')collapsed=true;
+    else if(e.key==='End'){collapsed=false;expandedWidth=MAX}
+    else if(e.key==='ArrowLeft'){
+      if(collapsed)return;
+      if(expandedWidth<=MIN+12)collapsed=true;
+      else expandedWidth=Math.max(MIN,expandedWidth-(e.shiftKey?32:16));
+    }else if(e.key==='ArrowRight'){
+      if(collapsed){collapsed=false;expandedWidth=MIN;}
+      else expandedWidth=Math.min(MAX,expandedWidth+(e.shiftKey?32:16));
+    }
+    store();apply();
+  });
+  document.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key==='\\'){e.preventDefault();toggleSidebar();}
+    if(e.key==='Escape'&&mobile()&&shell.classList.contains('mobile-open'))closeMobile();
+  });
+  window.addEventListener('resize',()=>{if(!mobile()&&shell.classList.contains('mobile-open'))closeMobile();apply()});
+  apply(false);
+})();
+
+</script></body></html>

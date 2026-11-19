@@ -11,8 +11,8 @@ Live: https://venn-peach-eight.vercel.app · Sample tokens: https://github.com/m
 1. **Intro.** Three short screens explain the loop. Skip goes straight to setup.
 2. **Connect GitHub.** A public repository and the path of its token file.
 3. **Connect Figma.** Paste your file link and install the plugin (`figma-plugin.zip`, then Plugins, Development, Import plugin from manifest in Figma Desktop).
-4. **Watch.** Venn checks GitHub about every 45 seconds while open, shows what changed since Figma was last updated, and which push changed it.
-5. **Apply in Figma.** The plugin lists each value that differs from code. Tick what to update and press Apply. It writes values and real variable aliases, creates missing variables you tick, reads every value back, and undoes the whole run if anything does not match.
+4. **Watch.** Venn checks GitHub about every 45 seconds while open. The Overview draws your own button and card from the last sync and from code, with a slider to compare, and lists each push with what it changed. The Tokens page shows every token as a swatch or shape, with changed ones ringed in amber. The accent colour follows your primary colour token.
+5. **Apply in Figma.** The plugin groups the differences under the push that made them and shows each as a tile (colours split old and new, radii as the shape), with a before/after preview of a button and card built from the file's variables. Tick what to update and press Apply. It writes values and real variable aliases, creates missing variables you tick, reads every value back, and undoes the whole run if anything does not match.
 6. **Record in Venn.** One click opens the site with the update, and the dashboard turns green.
 
 A 54-second walkthrough is in `demo/venn-walkthrough.mp4`.

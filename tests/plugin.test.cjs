@@ -12,9 +12,12 @@ const TOKENS = {
   background: { page: { $type: 'color', $value: '{color.neutral.0}', $extensions: { modes: { Dark: '{color.neutral.950}' } } } },
   radius: { button: { $type: 'number', $value: 12 }, card: { $type: 'number', $value: 16 } },
 };
+const OLD = 'c'.repeat(40);
+// The push before: radius/button was 2 and radius/card did not exist yet.
+const OLD_TOKENS = JSON.parse(JSON.stringify(TOKENS)); OLD_TOKENS.radius = { button: { $type: 'number', $value: 2 } };
 const rgb = (hex) => ({ r: parseInt(hex.slice(1, 3), 16) / 255, g: parseInt(hex.slice(3, 5), 16) / 255, b: parseInt(hex.slice(5, 7), 16) / 255, a: 1 });
 
-function setup({ head = SHA, saved = { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json', collection: 'Penny 2.0' } } = {}) {
+function setup({ head = SHA, history = false, saved = { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json', collection: 'Penny 2.0' } } = {}) {
   let fetches = 0;
   const messages = [];
   const writes = [];
@@ -59,8 +62,9 @@ function setup({ head = SHA, saved = { repo: 'mail2tarunv-cpu/penny-tokens', pat
   };
   const fetch = async (url) => {
     fetches++;
-    if (url.startsWith('https://api.github.com/')) return { ok: true, status: 200, json: async () => [{ sha: headSha, commit: { message: 'Penny 2.0\n\nbody' } }] };
-    if (url.startsWith('https://raw.githubusercontent.com/')) return { ok: true, status: 200, text: async () => JSON.stringify(TOKENS) };
+    const list = [{ sha: headSha, commit: { message: 'Penny 2.0\n\nbody' } }].concat(history ? [{ sha: OLD, commit: { message: 'Older push' } }] : []);
+    if (url.startsWith('https://api.github.com/')) return { ok: true, status: 200, json: async () => (url.includes('per_page=1&') || url.endsWith('per_page=1') ? list.slice(0, 1) : list) };
+    if (url.startsWith('https://raw.githubusercontent.com/')) return { ok: true, status: 200, text: async () => JSON.stringify(url.includes(OLD) ? OLD_TOKENS : TOKENS) };
     throw new Error('unexpected ' + url);
   };
   const ctx = { figma, __html__: '', fetch, console, Date, Error, Promise, Number, String, Array, Object, Math, JSON, Map, Set, parseInt, parseFloat, encodeURIComponent };
@@ -169,11 +173,20 @@ const statusOf = (rows) => Object.fromEntries(rows.filter((r) => !r.implicit).ma
   assert.match((await h.send({ type: 'check', config: { repo: 'not a repo', path: '' } })).message, /owner\/name/);
   assert.equal((await h.send({ type: 'check', config: { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json', collection: 'Penny 2.0' } })).type, 'checked');
 
+  // Each change is credited to the push that made it.
+  const k = setup({ history: true });
+  const kc = await k.send({ type: 'init' });
+  const pushOf = Object.fromEntries(kc.rows.filter((r) => r.push).map((r) => [r.key, r.push]));
+  assert.equal(pushOf['radius/button'], SHA, 'changed in the latest push');
+  assert.equal(pushOf['radius/card'], SHA, 'added in the latest push');
+  assert.equal(pushOf['action/primary'], OLD, 'unchanged since the older push, so that push made it');
+  assert.deepEqual(Array.from(kc.pushes, (x) => x.sha), [SHA, OLD]);
+
   // Record in Venn only opens the Venn site with a receipt.
   const f = setup();
   await f.send({ type: 'open', url: 'https://venn-peach-eight.vercel.app/#receipt=abc' });
   assert.deepEqual(f.figma.opened, ['https://venn-peach-eight.vercel.app/#receipt=abc']);
   assert.equal((await f.send({ type: 'open', url: 'https://evil.example/#receipt=abc' })).type, 'error');
 
-  console.log('PASS plugin: same token rules as site, read-only check, modes, aliases, missing and extra variables, fix-everything run with read-back, consent, new-commit and conflict guards, full rollback, record-link guard, first-run setup');
+  console.log('PASS plugin: same token rules as site, read-only check, modes, aliases, missing and extra variables, fix-everything run with read-back, consent, new-commit and conflict guards, full rollback, record-link guard, first-run setup, push attribution');
 })().catch((err) => { console.error(err); process.exit(1); });

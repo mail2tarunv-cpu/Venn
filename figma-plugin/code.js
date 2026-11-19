@@ -199,14 +199,34 @@ const send = (type, data = {}) => figma.ui.postMessage(Object.assign({ type }, d
 /* END TOKENS */
 
 /* ---------- GitHub ---------- */
-async function headCommit(repo, path) {
-  const res = await fetch(`https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&per_page=1`, { headers: { Accept: 'application/vnd.github+json' } });
+const HISTORY = 10; // recent pushes used to say which push made each change
+async function recentCommits(repo, path, count) {
+  const res = await fetch(`https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&per_page=${count || 1}`, { headers: { Accept: 'application/vnd.github+json' } });
   if (res.status === 404) throw Error('Repository or file not found. Is the repository public?');
   if (res.status === 403 || res.status === 429) throw Error('GitHub is rate limiting requests. Try again in a few minutes.');
   if (!res.ok) throw Error('Could not reach GitHub.');
   const list = await res.json();
   if (!list.length) throw Error('No commits touch that token file.');
-  return { sha: list[0].sha, message: String(list[0].commit.message).split('\n')[0] };
+  return list.map((c) => ({ sha: c.sha, message: String(c.commit.message).split('\n')[0], author: (c.commit.author && c.commit.author.name) || '', date: (c.commit.author && c.commit.author.date) || null }));
+}
+async function headCommit(repo, path) { return (await recentCommits(repo, path, 1))[0]; }
+
+/* Which push made each change: walk back from the latest commit until the token's value differs.
+   Returns { key: sha }, or no entry when the change is older than the pushes looked at. */
+async function attribute(repo, path, commits, entries, keys) {
+  if (!keys.length) return {};
+  const older = await Promise.all(commits.slice(1).map((c) => tokensAt(repo, c.sha, path).catch(() => null)));
+  const sameEntry = (a, b) => !!a && !!b && (a.alias || b.alias ? matchKey(a.alias || '') === matchKey(b.alias || '') : a.value === b.value);
+  const out = {};
+  for (const key of keys) {
+    const e = entries[key];
+    const at = (flat) => flat && (flat[key] || (e.implicit ? flat[e.token] : null));
+    let i = 0;
+    while (i < older.length && sameEntry(at(older[i]), e)) i++;
+    // Stopped inside the window: commit i introduced it. Ran past the window: only known if history ended there.
+    if (i < older.length || commits.length < HISTORY) out[key] = commits[i].sha;
+  }
+  return out;
 }
 async function tokensAt(repo, sha, path) {
   const res = await fetch(`https://raw.githubusercontent.com/${repo}/${sha}/${path}`);
@@ -259,7 +279,8 @@ function modeIdFor(collection, mode) {
 /* ---------- check: read only ---------- */
 async function check(config) {
   const { collection, names } = await collectionFor(config.collection);
-  const head = await headCommit(config.repo, config.path);
+  const commits = await recentCommits(config.repo, config.path, HISTORY);
+  const head = commits[0];
   const entries = await tokensAt(config.repo, head.sha, config.path);
   const variables = (await figma.variables.getLocalVariablesAsync()).filter((v) => v.variableCollectionId === collection.id);
   const byName = new Map(variables.map((v) => [matchKey(v.name), v]));
@@ -293,8 +314,12 @@ async function check(config) {
   for (const r of rows) if (r.implicit && fixing.has(r.name) && (r.status === 'differs' || r.status === 'missing')) r.follows = r.name;
   const tokenNames = new Set(Object.values(entries).map((e) => matchKey(e.token)));
   for (const v of variables) if (!tokenNames.has(matchKey(v.name))) rows.push({ key: v.name, name: v.name, mode: null, type: v.resolvedType === 'COLOR' ? 'color' : 'number', status: 'extra' });
+  const todo = rows.filter((r) => (r.status === 'differs' || r.status === 'missing') && !r.follows).map((r) => r.key);
+  const pushOf = await attribute(config.repo, config.path, commits, entries, todo);
+  for (const r of rows) if (pushOf[r.key]) r.push = pushOf[r.key];
+  const pushes = commits.filter((c) => rows.some((r) => r.push === c.sha)).map((c) => ({ sha: c.sha, message: c.message, author: c.author, date: c.date }));
   state = { config, sha: head.sha, message: head.message, collectionId: collection.id, collection: collection.name, rows };
-  send('checked', { sha: head.sha, message: head.message, collection: collection.name, collections: names, modes: collection.modes.map((m) => m.name), rows });
+  send('checked', { sha: head.sha, message: head.message, repo: config.repo, collection: collection.name, collections: names, modes: collection.modes.map((m) => m.name), rows, pushes });
 }
 
 /* ---------- apply: only reviewed rows, verified, all-or-nothing ---------- */

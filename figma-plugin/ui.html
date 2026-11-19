@@ -77,6 +77,51 @@
   .empty svg { width: 40px; height: 26px; fill: none; stroke: var(--success); stroke-width: 1.4; margin-bottom: 8px; }
   .empty strong { display: block; color: var(--text); font-weight: 600; font-size: 12px; margin-bottom: 2px; }
 
+  /* Before/after preview built from this file's own variables */
+  .preview { margin: 8px 8px 4px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .pv-panes { display: grid; grid-template-columns: 1fr 1fr; }
+  .pv-pane { position: relative; display: grid; gap: 8px; justify-items: center; align-content: center; padding: 26px 10px 10px; }
+  .pv-pane + .pv-pane { border-left: 1px solid var(--border); }
+  .pv-cap { position: absolute; top: 6px; left: 8px; font-size: 9.5px; color: var(--text-2); background: var(--bg); padding: 0 4px; border-radius: 3px; }
+  .pv-btn { height: 26px; padding: 0 16px; font: 600 10.5px/26px Inter, system-ui, sans-serif; white-space: nowrap; max-width: 100%; overflow: hidden; }
+  .pv-card { width: 88%; height: 30px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); display: grid; align-content: center; gap: 4px; padding: 0 8px; }
+  .pv-card i { display: block; height: 4px; border-radius: 2px; background: rgba(127,127,127,.35); }
+  .pv-card i:first-child { width: 55%; background: rgba(127,127,127,.6); }
+  .pv-tabs { display: flex; border-top: 1px solid var(--border); }
+  .pv-tabs button { flex: 1; padding: 5px 0; color: var(--text-2); }
+  .pv-tabs button.on { color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--text); }
+
+  /* Changes grouped by the push that made them, each shown as a specimen tile */
+  .group { margin: 0 8px 8px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .ghead { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--bg-2); cursor: pointer; }
+  .ghead input { width: 12px; height: 12px; margin: 0; accent-color: var(--brand); flex: none; }
+  .ghead .gt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .ghead .gsha { color: var(--text-3); flex: none; }
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--border); }
+  .tile { position: relative; background: var(--bg); box-shadow: inset -1px -1px 0 var(--border); padding: 8px; display: grid; gap: 6px; align-content: start; cursor: pointer; min-width: 0; }
+  .tile:hover { background: var(--bg-hover); }
+  .tile input { position: absolute; opacity: 0; pointer-events: none; }
+  .tile:focus-within { outline: 2px solid var(--brand); outline-offset: -2px; }
+  .tile.on { background: var(--brand-soft); }
+  .tile.on::after { content: ""; position: absolute; top: 6px; right: 6px; width: 12px; height: 12px; border-radius: 3px; background: var(--brand) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 6.2l2 2 4-4.4' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat; }
+  .tn { display: flex; align-items: center; min-width: 0; padding-right: 14px; font-size: 10px; color: var(--text-2); }
+  .tn .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .spec { height: 34px; border-radius: 6px; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); }
+  .spec.one { grid-template-columns: 1fr; }
+  .spec .empty-half { background: repeating-linear-gradient(135deg, transparent 0 4px, rgba(127,127,127,.18) 4px 5px); }
+  .shape { height: 34px; position: relative; display: grid; place-items: center; }
+  .shape i { position: absolute; width: 58%; height: 22px; box-sizing: border-box; }
+  .shape .was { border: 1.2px dashed var(--text-3); }
+  .shape .now { border: 1.5px solid var(--brand); }
+  .bars { height: 34px; display: grid; gap: 5px; align-content: center; }
+  .bars i { display: block; height: 4px; border-radius: 2px; }
+  .bars .was { background: var(--text-3); opacity: .5; } .bars .now { background: var(--brand); }
+  .tv { display: grid; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 9.5px; line-height: 13px; min-width: 0; }
+  .tv span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tv .from { color: var(--text-3); text-decoration: line-through; }
+  .tv .to { color: var(--text); font-weight: 500; }
+  .tv .new { color: var(--brand-text); font-family: Inter, system-ui, sans-serif; font-weight: 600; text-decoration: none; }
+
   .banner { margin: 8px 12px 0; padding: 8px 10px; border-radius: 6px; }
   .banner.error { background: var(--danger-soft); color: var(--danger); }
   .banner.ok { background: var(--success-soft); color: var(--success); }
@@ -163,14 +208,75 @@ function glyph(r) {
   return `<svg class="glyph" viewBox="0 0 16 16"><rect class="f" x="1.5" y="4" width="${w(r.figma)}" height="3" rx="1"/><rect class="c" x="1.5" y="9" width="${w(r.code)}" height="3" rx="1"/></svg>`;
 }
 
+const tail = (name) => name.split('/').slice(-2).join('/');
+const plain = (type, v, alias) => (alias ? short(alias) : v === null || v === undefined ? '—' : String(v));
+
+// What the change looks like: colours split old | new, radii as the shape, other numbers as two bars.
+function specimen(r) {
+  if (r.type === 'color') {
+    const was = r.status === 'missing' ? '' : `<i style="background:${esc(r.figma || 'transparent')}"></i>`;
+    return `<span class="spec ${was ? '' : 'one'}">${was}<i style="background:${esc(r.code)}"></i></span>`;
+  }
+  const k = (v) => Math.max(0, Math.min(11, (Number(v) || 0) * 0.75));
+  if (/radius/i.test(r.name)) return `<span class="shape">${r.status === 'missing' ? '' : `<i class="was" style="border-radius:${k(r.figma)}px"></i>`}<i class="now" style="border-radius:${k(r.code)}px"></i></span>`;
+  const max = Math.max(Number(r.figma) || 0, Number(r.code) || 0, 1), w = (v) => Math.max(4, Math.round(((Number(v) || 0) / max) * 100));
+  return `<span class="bars">${r.status === 'missing' ? '' : `<i class="was" style="width:${w(r.figma)}%"></i>`}<i class="now" style="width:${w(r.code)}%"></i></span>`;
+}
+function tileHtml(r) {
+  const vals = r.status === 'missing'
+    ? `<span class="new">New</span><span class="to">${esc(plain(r.type, r.code, r.codeAlias))}</span>`
+    : `<span class="from">${esc(plain(r.type, r.figma, r.figmaAlias))}</span><span class="to">${esc(plain(r.type, r.code, r.codeAlias))}</span>`;
+  const label = r.name + (r.mode ? ` · ${r.mode}` : '');
+  return `<label class="tile" title="${esc(label + ': ' + WHY[r.status](r))}"><input type="checkbox" class="pick" value="${esc(r.key)}" aria-label="${esc(label)}">`
+    + `<span class="tn"><span class="t">${esc(tail(r.name))}</span>${r.mode ? `<span class="mode">${esc(r.mode)}</span>` : ''}</span>${specimen(r)}<span class="tv">${vals}</span></label>`;
+}
+function groupHtml(push, items) {
+  return `<div class="group"><label class="ghead"><input type="checkbox" class="gpick" aria-label="Select every change in this push"><span class="gt">${push ? esc(push.message) : 'Earlier changes'}</span>${push ? `<span class="gsha mono">${esc(push.sha.slice(0, 7))}</span>` : ''}</label>`
+    + `<div class="tiles">${items.map(tileHtml).join('')}</div></div>`;
+}
+
+// A button and a card drawn from this file's variables: Figma now, and after the ticked changes.
+let previewMode = null;
+function previewHtml(data) {
+  const all = data.rows;
+  const find = (type, ...res) => { for (const re of res) { const hit = all.find((r) => !r.mode && r.type === type && re.test(r.name) && (r.code != null || r.figma != null)); if (hit) return hit; } return null; };
+  const parts = {
+    fill: find('color', /primary/i, /(action|brand|accent|button)/i),
+    label: find('color', /on[-_]?(brand|primary|action|accent)/i),
+    page: find('color', /(background|bg)\/(page|default|base|canvas)/i),
+    surface: find('color', /(background|bg)\/(surface|card|raised)/i),
+    btnRadius: find('number', /radius.*(button|btn|control)/i, /radius/i),
+    cardRadius: find('number', /radius.*(card|surface|container|panel)/i),
+  };
+  if (!parts.fill && !parts.btnRadius) return '';
+  const modes = data.modes && data.modes.length ? data.modes : [null];
+  const mode = modes.includes(previewMode) ? previewMode : modes[0];
+  const isDefault = mode === modes[0];
+  const inMode = (r) => r && (isDefault ? r : all.find((x) => x.key === `${r.name}@${mode}`) || r);
+  const picked = new Set(selected());
+  const now = (r) => (r && r.status !== 'missing' ? r.figma : null);
+  const after = (r) => (!r ? null : r.status === 'match' || picked.has(r.key) || (r.follows && picked.has(r.follows)) || (r.mode && picked.has(r.name) && r.implicit) ? r.code : now(r));
+  const pane = (pick, cap) => {
+    const v = (k, d) => { const x = pick(inMode(parts[k])); return x === null || x === undefined ? d : x; };
+    const bg = v('page', isDefault ? '#ffffff' : '#1e1e1e');
+    return `<div class="pv-pane" style="background:${esc(bg)}"><span class="pv-cap">${cap}</span>`
+      + `<span class="pv-btn" style="background:${esc(v('fill', '#999'))};color:${esc(v('label', '#ffffff'))};border-radius:${Number(v('btnRadius', 4))}px">Continue</span>`
+      + `<span class="pv-card" style="background:${esc(v('surface', bg))};border-radius:${Number(v('cardRadius', 8))}px"><i></i><i></i></span></div>`;
+  };
+  const tabs = modes.length > 1 && modes[0] ? `<div class="pv-tabs">${modes.map((m) => `<button type="button" data-mode="${esc(m)}" class="${m === mode ? 'on' : ''}">${esc(m)}</button>`).join('')}</div>` : '';
+  return `<div class="pv-panes">${pane(now, 'Figma now')}${pane(after, 'After update')}</div>${tabs}`;
+}
+function drawPreview() {
+  const box = $('preview');
+  if (!box || !lastData) return;
+  const html = previewHtml(lastData);
+  box.classList.toggle('hidden', !html);
+  box.innerHTML = html;
+  box.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { previewMode = b.dataset.mode; drawPreview(); }; });
+}
+
 function rowHtml(r) {
   const name = `<span class="name"><span class="t">${esc(r.name)}</span>${r.mode ? `<span class="mode">${esc(r.mode)}</span>` : ''}</span>`;
-  if (fixable(r)) {
-    const vals = r.status === 'missing'
-      ? `<span class="new">New</span><span>${val(r.type, r.code, r.codeAlias)}</span>`
-      : `<span class="from">${val(r.type, r.figma, r.figmaAlias)}</span><span class="from">→</span><span>${val(r.type, r.code, r.codeAlias)}</span>`;
-    return `<label class="row" title="${esc(WHY[r.status](r))}"><input type="checkbox" class="pick" value="${esc(r.key)}">${glyph(r)}${name}<span class="vals">${vals}</span></label>`;
-  }
   const right = r.status === 'match' ? val(r.type, r.figma, r.figmaAlias) : esc(r.status === 'extra' ? 'Only in Figma' : 'Skipped');
   return `<div class="row quiet" title="${esc(WHY[r.status](r))}"><span></span>${r.status === 'match' ? glyph(r) : '<span></span>'}${name}<span class="vals">${right}</span></div>`;
 }
@@ -180,7 +286,12 @@ function selected() { return Array.from(document.querySelectorAll('.pick:checked
 function syncButtons() {
   const n = selected().length;
   const todo = document.querySelectorAll('.pick').length;
-  document.querySelectorAll('.pick').forEach((i) => i.closest('.row').classList.toggle('on', i.checked));
+  document.querySelectorAll('.pick').forEach((i) => i.closest('.tile').classList.toggle('on', i.checked));
+  document.querySelectorAll('.group').forEach((g) => {
+    const picks = Array.from(g.querySelectorAll('.pick')), on = picks.filter((i) => i.checked).length;
+    const box = g.querySelector('.gpick'); box.checked = on === picks.length; box.indeterminate = on > 0 && on < picks.length;
+  });
+  drawPreview();
   $('apply').disabled = !n;
   $('apply').textContent = n ? `Apply ${n} ${n === 1 ? 'change' : 'changes'}` : 'Apply';
   $('hint').textContent = todo ? (n ? `${n} of ${todo} selected` : 'Tick what to update in Figma') : '';
@@ -199,7 +310,13 @@ function render(data) {
   $('collectionLabel').textContent = data.collection + (data.modes && data.modes.length > 1 ? ` · ${data.modes.length} modes` : '');
   let html = '';
   if (todo.length) {
-    html += `<div class="section">To update <span class="n">${todo.length}</span><button class="link" id="selectAll" type="button">Select all</button></div>` + todo.map(rowHtml).join('');
+    const pushes = data.pushes || [];
+    const groups = pushes.map((p) => [p, todo.filter((r) => r.push === p.sha)]).filter(([, items]) => items.length);
+    const earlier = todo.filter((r) => !pushes.some((p) => p.sha === r.push));
+    if (earlier.length) groups.push([null, earlier]);
+    html += `<div id="preview" class="preview hidden"></div>`;
+    html += `<div class="section">To update <span class="n">${todo.length} from ${groups.length === 1 ? '1 push' : groups.length + ' pushes'}</span><button class="link" id="selectAll" type="button">Select all</button></div>`
+      + groups.map(([p, items]) => groupHtml(p, items)).join('');
   } else {
     html += `<div class="empty"><svg viewBox="0 0 28 18"><circle cx="12" cy="9" r="7"/><circle cx="16" cy="9" r="7"/></svg><strong>Figma matches code</strong>${matching.length} values checked</div>`;
   }
@@ -210,6 +327,7 @@ function render(data) {
   }
   $('list').innerHTML = html;
   document.querySelectorAll('.pick').forEach((i) => i.addEventListener('change', syncButtons));
+  document.querySelectorAll('.gpick').forEach((g) => g.addEventListener('change', () => { g.closest('.group').querySelectorAll('.pick').forEach((i) => { i.checked = g.checked; }); syncButtons(); }));
   const all = $('selectAll');
   if (all) all.onclick = (e) => { e.preventDefault(); const picks = document.querySelectorAll('.pick'); const on = selected().length !== picks.length; picks.forEach((i) => { i.checked = on; }); syncButtons(); };
   const t = $('toggleMatching');

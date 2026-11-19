@@ -103,23 +103,32 @@ with sync_playwright() as p:
         page.locator("#figmaNext").click()
 
         # Overview: a banner says what happened, one token to review, starting from the commit before the latest.
-        page.locator(".change").first.wait_for()
-        assert "1 token changed" in page.locator(".banner").inner_text()
+        page.locator(".hero-figure").wait_for()
+        assert page.locator(".hero-figure .big").inner_text() == "1"
+        assert "token changed in code since the last sync" in page.locator(".hero-figure").inner_text()
         assert "assumed" in page.locator(".sync-note").inner_text(), "the starting point is labelled as an assumption"
-        assert "Last synced" in page.locator("#page-changes thead").first.inner_text()
+        assert "assumed" in page.locator(".tl-band").inner_text(), "the timeline marks the sync point"
         assert page.locator(".change").count() == 1
-        assert "radius/button" in page.locator(".change").inner_text()
+        assert page.locator(".change").get_attribute("title").startswith("radius/button")
         assert page.title() == "(1) Venn"
-        assert page.locator(".commit-row").count() == 1
-        assert page.locator("#page-changes .specimen").count() == 0, "detail lives on the Tokens page"
+        assert page.locator(".commit-row").count() == 1, "one push waiting"
+        assert "radius/button" in page.locator(".commit-row .diff").inner_text(), "the push lists what it changed"
+        # Hero: the team's own button, drawn from the last sync and from code.
+        radii = page.locator(".wipe .spec-btn").evaluate_all("els => els.map(e => getComputedStyle(e).borderTopLeftRadius)")
+        assert radii == ["2px", "12px"], radii
+        page.locator("#wipeRange").fill("20")
+        assert page.locator(".wipe").evaluate("e => e.style.getPropertyValue('--x')") == "20%"
+        assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()").lower() == "#008254", "accent follows the team's primary colour"
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"changes overflow {width}"
         page.screenshot(path=str(shots / f"changes-{width}.png"), full_page=True)
 
-        # Tokens page: change map and component preview built from the tokens.
+        # Tokens page: changed tokens first, drawn as specimens; All shows every token.
         nav(page, "tokens", narrow)
-        page.locator(".map .cell").first.wait_for()
-        radii = page.locator("#page-tokens .specimen").evaluate_all("els => els.map(e => getComputedStyle(e).borderTopLeftRadius)")
-        assert radii == ["2px", "12px"], radii
+        page.locator(".tok").first.wait_for()
+        assert page.locator("#page-tokens .tok").count() == 1
+        page.locator('[data-filter="all"]').click()
+        assert page.locator("#page-tokens .tok").count() == 3
+        page.locator('[data-filter="changed"]').click()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"tokens overflow {width}"
         page.screenshot(path=str(shots / f"tokens-{width}.png"), full_page=True)
         nav(page, "changes", narrow)

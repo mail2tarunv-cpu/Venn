@@ -163,6 +163,8 @@ function render() {
   watch.className = 'watch ' + (live.error ? 'error' : live.checkedAt ? 'live' : '');
   $('watchText').textContent = live.error ? 'Not connected' : live.checkedAt ? `Watching · checked ${ago(new Date(live.checkedAt).toISOString())}` : 'Connecting';
 
+  if (live.head) applyBrand();
+  setFavicon(changes.length > 0);
   renderDashboard(changes, commits);
   renderHistory();
   renderConnections();
@@ -203,77 +205,185 @@ function formatCell(type, value, alias) {
 const modeTag = (mode) => (mode ? `<span class="mode-tag">${esc(mode)}</span>` : '');
 const entryLabel = (key) => { const [name, mode] = key.split('@'); return `${esc(name)}${modeTag(mode)}`; };
 
-/* Hero: every token across recent commits, as a dot matrix, with the Figma sync point marked. */
-function renderMap() {
-  const t = live.timeline;
-  if (!t.length || !live.head) return '';
-  // Only tokens that changed in the commits shown; a real system has hundreds and most never move.
-  const moved = new Set(t.flatMap((x) => [...x.changed]));
-  const names = Object.keys(live.head).filter((n) => moved.has(n)).sort().slice(0, 40);
-  const hiddenCount = Math.max(0, moved.size - names.length);
-  if (!names.length) return `<div class="card empty"><svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg><h2>No token changed in the last ${plural(t.length, 'commit', 'commits')}</h2><p>The change map shows which push changed which token</p></div>`;
-  const syncIdx = t.findIndex((x) => x.commit.sha === workspace.syncedSha);
-  const cols = t.map((x, i) => {
-    const after = syncIdx !== -1 && i > syncIdx;
-    const cells = names.map((n) => {
-      const type = live.head[n].type;
-      const changed = x.changed.has(n);
-      const before = i > 0 && t[i - 1].tokens ? t[i - 1].tokens[n]?.value : null;
-      const now = x.tokens?.[n]?.value;
-      const tip = changed ? `${n}: ${before ?? '—'} → ${now ?? '—'} in ${short(x.commit.sha)}` : `${n}: ${now ?? '—'}`;
-      return `<div class="cell ${changed ? 'on ' + type : ''}" title="${esc(tip)}"></div>`;
-    }).join('');
-    const label = x.commit.date ? new Date(x.commit.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
-    return `<div class="map-col ${after ? 'ahead' : ''} ${i === syncIdx ? 'synced' : ''} ${i === t.length - 1 ? 'last' : ''}">
-      ${i === syncIdx ? `<span class="sync-flag">Last synced</span>` : ''}
-      ${cells}
-      <div class="map-x"><span class="mono">${esc(short(x.commit.sha))}</span><small>${esc(label)}</small></div>
-    </div>`;
-  }).join('');
-  const shown = t.length < live.commits.length ? `Last ${t.length} of ${live.commits.length} commits` : `All ${plural(t.length, 'commit', 'commits')}`;
-  return `<div class="card map-card">
-    <div class="card-head">
-      <div><h2>Change map</h2><p>${plural(names.length, 'token', 'tokens')} that changed across ${shown.toLowerCase()}${hiddenCount ? `, ${hiddenCount} more not shown` : ''}, oldest on the left</p></div>
-      <div class="legend"><span><i class="lg color"></i>Colour</span><span><i class="lg number"></i>Number</span></div>
-    </div>
-    <div class="map-scroll"><div class="map">
-      <div class="map-names">${names.map((n) => `<div class="map-name mono">${entryLabel(n)}</div>`).join('')}<div class="map-x"></div></div>
-      ${cols}
-    </div></div>
-  </div>`;
-}
-
-function renderInventory(changes) {
-  const entries = Object.entries(live.head || {}).sort((a, b) => a[0].localeCompare(b[0]));
-  const colors = entries.filter(([, t]) => t.type === 'color').length;
-  const total = entries.length || 1;
-  const drifted = new Set(changes.map((c) => c.name));
-  return `<div class="card inventory">
-    <div class="card-head"><div><h2>Tokens</h2><p>Current values in code</p></div></div>
-    <div class="inv-figure"><span class="big">${entries.length}</span><span class="pill ${changes.length ? 'warn' : 'good'}">${changes.length ? `${changes.length} drifted` : 'All in Figma'}</span></div>
-    <div class="split-bar" aria-hidden="true"><span class="seg color" style="flex:${colors / total}"></span><span class="seg number" style="flex:${(total - colors) / total}"></span></div>
-    <div class="split-legend"><span><i class="lg color"></i>Colours ${colors}</span><span><i class="lg number"></i>Numbers ${entries.length - colors}</span></div>
-    <ul class="inv-list">${entries.map(([n, t], i) => `<li class="${i >= 12 ? 'more-row hidden' : ''}"><span class="mono">${entryLabel(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Changed since the last sync"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value, t.alias)}</span></li>`).join('')}</ul>
-    ${entries.length > 12 ? `<button class="show-more" data-more type="button">Show all ${entries.length}</button>` : ''}
-  </div>`;
-}
-
-function previewCard() {
-  if (!live.head || !live.synced) return '';
-  const style = (t) => {
-    const radius = t['radius/button']?.value ?? 8;
-    const bg = t['action/primary']?.value ?? '#171717';
-    const fg = t['text/on-brand']?.value ?? '#FFFFFF';
-    const pad = t['spacing/component']?.value ?? 16;
-    return `border-radius:${radius}px;background:${esc(bg)};color:${esc(fg)};padding:0 ${pad * 1.5}px`;
+/* ---------- the user's own components, drawn from their tokens ---------- */
+/* Tokens are found by name, so other teams' files work too: a primary colour, a radius, a surface. */
+function previewParts(flat) {
+  const keys = Object.keys(flat || {}).filter((k) => !k.includes('@'));
+  const find = (type, ...res) => { for (const re of res) { const k = keys.find((n) => flat[n].type === type && re.test(n)); if (k) return k; } return null; };
+  return {
+    fill: find('color', /primary/i, /(action|brand|accent|button)/i),
+    label: find('color', /on[-_]?(brand|primary|action|accent)/i),
+    surface: find('color', /(background|bg|surface)\/(surface|card|raised)/i),
+    btnRadius: find('number', /radius.*(button|btn|control)/i, /radius/i),
+    cardRadius: find('number', /radius.*(card|surface|container|panel)/i),
+    pad: find('number', /spac.*(component|control|button|inset)/i),
   };
-  return `<div class="card preview-card">
-    <div class="card-head"><div><h2>Component preview</h2><p>Primary button built from your tokens</p></div></div>
-    <div class="preview-stage">
-      <div class="preview-cell"><label>Last synced · <span class="mono">${esc(short(workspace.syncedSha))}</span></label><button class="specimen" tabindex="-1" style="${style(live.synced)}">Continue</button></div>
-      <div class="preview-cell"><label>Code · <span class="mono">${esc(short(live.commits[0].sha))}</span></label><button class="specimen" tabindex="-1" style="${style(live.head)}">Continue</button></div>
-    </div>
+}
+function specimenHtml(flat, parts) {
+  const v = (k, d) => (parts[k] && flat && flat[parts[k]] ? flat[parts[k]].value : d);
+  const num = (k, d, max) => Math.max(0, Math.min(Number(v(k, d)) || 0, max));
+  return `<span class="spec-btn" style="background:${esc(v('fill', '#18181b'))};color:${esc(v('label', '#ffffff'))};border-radius:${num('btnRadius', 6, 22)}px;padding:0 ${Math.round(num('pad', 16, 28) * 1.4)}px">Continue</span>`
+    + `<span class="spec-card" style="background:${esc(v('surface', '#ffffff'))};border-radius:${num('cardRadius', 10, 24)}px"><span class="spec-dot" style="background:${esc(v('fill', '#18181b'))}"></span><i></i><i></i></span>`;
+}
+function wipeHtml(drift) {
+  const parts = previewParts(live.head);
+  if (!parts.fill && !parts.btnRadius) return '';
+  const head = live.commits[0];
+  if (!drift || !live.synced) {
+    return `<div class="wipe still"><div class="wipe-layer after">${specimenHtml(live.head, parts)}</div><span class="wipe-cap left">Figma and code · <span class="mono">${esc(short(head.sha))}</span></span></div>`;
+  }
+  return `<div class="wipe" style="--x:50%">
+    <div class="wipe-layer before">${specimenHtml(live.synced, parts)}</div>
+    <div class="wipe-layer after">${specimenHtml(live.head, parts)}</div>
+    <span class="wipe-cap left">Last synced · <span class="mono">${esc(short(workspace.syncedSha))}</span></span>
+    <span class="wipe-cap right">Code · <span class="mono">${esc(short(head.sha))}</span></span>
+    <span class="wipe-handle" aria-hidden="true"></span>
+    <input class="wipe-range" id="wipeRange" type="range" min="0" max="100" value="50" aria-label="Drag to compare the last sync with code">
   </div>`;
+}
+
+/* ---------- pushes, newest first, each with what it changed ---------- */
+function diffChip(d) {
+  const label = `${esc(d.token || d.name)}${d.mode ? ` <span class="chip-mode">${esc(d.mode)}</span>` : ''}`;
+  if (d.type === 'color') {
+    const dot = (v) => (v ? `<i style="background:${esc(v)}"></i>` : '<i class="none"></i>');
+    return `<span class="diff" title="${esc(`${d.name}: ${d.before ?? 'none'} → ${d.after ?? 'removed'}`)}"><span class="pair">${dot(d.before)}${dot(d.after)}</span>${label}</span>`;
+  }
+  const val = d.kind === 'added' ? `<b>${esc(d.after)}</b>` : d.kind === 'removed' ? 'removed' : `${esc(d.before)} → <b>${esc(d.after)}</b>`;
+  return `<span class="diff num">${label} <span class="dv">${val}</span></span>`;
+}
+function timelineHtml(pendingCommits) {
+  const pendingSet = new Set(pendingCommits.map((c) => c.sha));
+  const list = live.commits.slice(0, 10);
+  const syncedIdx = list.findIndex((c) => c.sha === workspace.syncedSha);
+  const band = `<div class="tl-band ${workspace.confirmedAt ? 'confirmed' : ''}"><span>Figma last synced${workspace.confirmedAt ? '' : ' (assumed)'}</span></div>`;
+  const events = list.map((c, i) => {
+    const t = live.timeline.find((x) => x.commit.sha === c.sha);
+    const idx = t ? live.timeline.indexOf(t) : -1;
+    const prev = idx > 0 ? live.timeline[idx - 1].tokens : null;
+    const diffs = t && t.tokens && prev ? Tokens.diff(prev, t.tokens) : [];
+    const state = pendingSet.has(c.sha) ? 'pending' : c.sha === workspace.syncedSha ? 'synced' : 'earlier';
+    const chips = diffs.length
+      ? `<div class="diffs">${diffs.map((d, j) => (j >= 6 ? diffChip(d).replace('class="diff', 'class="diff more-chip hidden') : diffChip(d))).join('')}${diffs.length > 6 ? `<button class="diff more" type="button" data-chips>+${diffs.length - 6} more</button>` : ''}</div>`
+      : t && t.first && t.tokens ? `<p class="tl-note">First version Venn can see · ${plural(Object.keys(t.tokens).length, 'value', 'values')}</p>`
+      : t && t.tokens && prev ? '<p class="tl-note">No colour or number values changed</p>' : '';
+    return `${i === syncedIdx ? band : ''}<div class="tl-event ${state} ${state === 'pending' ? 'commit-row' : 'commit-row-synced'}">
+      <span class="tl-rail"><i></i></span>
+      <div class="tl-body">
+        <div class="tl-top"><strong>${esc(c.message)}</strong><a class="mono sha" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(short(c.sha))}</a></div>
+        <div class="tl-meta">${esc(c.author)} · ${c.date ? esc(ago(c.date)) : ''}${diffs.length ? ` · ${plural(diffs.length, 'change', 'changes')}` : ''}</div>
+        ${chips}
+      </div></div>`;
+  }).join('');
+  return `<div class="card timeline">
+    <div class="card-head"><div><h2>Pushes</h2><p>What each push changed in the token file, newest first</p></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">GitHub${icon('external')}</a></div>
+    <div class="tl">${events}${syncedIdx === -1 ? band : ''}</div>
+  </div>`;
+}
+
+const sinceShort = (iso) => ((Date.now() - new Date(iso).getTime()) / 864e5 > 45
+  ? new Date(iso).toLocaleDateString([], { month: 'short', year: 'numeric' }) : ago(iso).replace(' ago', ''));
+function statsHtml(changes, pendingCommits) {
+  const head = live.head || {};
+  const base = Object.values(head).filter((e) => !e.mode);
+  const colours = base.filter((e) => e.type === 'color').length;
+  const modes = new Set(Object.values(head).map((e) => e.mode).filter(Boolean));
+  const recent = live.timeline.slice(-8);
+  const max = Math.max(1, ...recent.map((x) => x.changed.size));
+  const pendingSet = new Set(pendingCommits.map((c) => c.sha));
+  const bars = recent.map((x, i) => { const h = Math.max(2, Math.round((x.changed.size / max) * 22)); return `<rect class="${pendingSet.has(x.commit.sha) ? 'hot' : ''}" x="${i * 13}" y="${24 - h}" width="10" height="${h}" rx="2" />`; }).join('');
+  const authors = new Set(pendingCommits.map((c) => c.author)).size;
+  const syncedCommit = live.commits.find((c) => c.sha === workspace.syncedSha);
+  const when = workspace.confirmedAt || syncedCommit?.date;
+  return `<div class="card statstrip">
+    <div class="st"><span class="st-label">Tokens tracked</span><span class="st-value">${base.length}</span><span class="st-foot">${colours} colours · ${base.length - colours} numbers${modes.size ? ` · ${modes.size + 1} modes` : ''}</span></div>
+    <div class="st"><span class="st-label">Waiting for Figma</span><span class="st-value ${changes.length ? 'warn' : 'good'}">${changes.length}</span><svg class="st-bars" viewBox="0 0 ${Math.max(1, recent.length * 13 - 3)} 24" preserveAspectRatio="none" role="img" aria-label="Changes per push">${bars}</svg></div>
+    <div class="st"><span class="st-label">Pushes since sync</span><span class="st-value">${pendingCommits.length}</span><span class="st-foot">${pendingCommits.length ? `by ${plural(authors, 'person', 'people')}` : 'Nothing new'}</span></div>
+    <div class="st"><span class="st-label">Last synced</span><span class="st-value">${when ? esc(sinceShort(when)) : '—'}</span><span class="st-foot"><span class="mono">${esc(short(workspace.syncedSha))}</span> · ${workspace.confirmedAt ? 'confirmed' : 'assumed'}</span></div>
+  </div>`;
+}
+
+/* ---------- Tokens page: every token as a specimen, grouped by family ---------- */
+let tokenFilter = null;
+let tokenMode = null;
+function tokenTile(row) {
+  const { name, e, c } = row;
+  const value = e ? e.value : c?.before;
+  const type = e ? e.type : c?.type;
+  const before = c && c.kind === 'changed' ? c.before : null;
+  const state = !c ? '' : c.kind === 'added' ? 'new' : c.kind === 'removed' ? 'removed' : 'drift';
+  const short2 = name.split('/').slice(1).join('/') || name;
+  let visual;
+  if (type === 'color') {
+    visual = `<span class="tok-swatch" style="background:${esc(value)}">${before ? `<span class="tok-was" style="background:${esc(before)}"></span>` : ''}</span>`;
+  } else if (/radius/i.test(name)) {
+    visual = `<span class="tok-shape"><i style="border-radius:${Math.min(Number(value) || 0, 26)}px"></i></span>`;
+  } else if (/font|text|line/i.test(name)) {
+    visual = `<span class="tok-shape"><b style="font-size:${Math.max(10, Math.min(Number(value) || 14, 30))}px">Aa</b></span>`;
+  } else {
+    visual = `<span class="tok-shape"><em style="width:${Math.max(4, Math.min(Number(value) || 0, 64) * 1.5)}px"></em></span>`;
+  }
+  const tail2 = (n) => n.split('/').slice(-2).join('/');
+  const alias = e?.alias ? `{${tail2(e.alias)}}` : null;
+  const shown = (v) => esc(String(v));
+  const val = state === 'drift' ? `<s>${shown(c.beforeAlias ? `{${tail2(c.beforeAlias)}}` : before)}</s> ${shown(alias || value)}`
+    : state === 'new' ? `<span class="tok-badge">New</span> ${shown(alias || value)}`
+    : state === 'removed' ? '<span class="tok-badge">Removed in code</span>' : shown(alias || value);
+  return `<div class="tok ${state} ${c ? 'change' : ''}" title="${esc(name + (alias ? ' → ' + alias : ''))}">${visual}<span class="tok-name mono">${esc(short2)}</span><span class="tok-val">${val}</span></div>`;
+}
+function renderTokensPage(changes) {
+  const root = $('tokensBody');
+  if (live.loading || live.error || !live.head) { root.innerHTML = live.error ? `<div class="notice">${esc(live.error)}</div>` : '<div class="skeleton"></div>'; return; }
+  const head = live.head;
+  const modes = [...new Set(Object.values(head).map((e) => e.mode).filter(Boolean))];
+  const mode = modes.includes(tokenMode) ? tokenMode : null;
+  const byKey = new Map(changes.map((c) => [c.name, c]));
+  const names = [...new Set(Object.values(head).map((e) => e.token).concat(changes.filter((c) => c.kind === 'removed' && !c.mode).map((c) => c.token || c.name)))].sort();
+  const rows = names.map((name) => {
+    const key = mode && head[`${name}@${mode}`] ? `${name}@${mode}` : mode && byKey.has(`${name}@${mode}`) ? `${name}@${mode}` : name;
+    return { name, key, e: head[key] || null, c: byKey.get(key) || null };
+  });
+  const changedRows = rows.filter((r) => r.c);
+  const filter = tokenFilter || (changedRows.length ? 'changed' : 'all');
+  const shown = rows.filter((r) => filter === 'all' || (filter === 'changed' && r.c) || (filter === 'new' && r.c?.kind === 'added'));
+  const families = new Map();
+  for (const r of shown) { const f = r.name.split('/')[0]; if (!families.has(f)) families.set(f, []); families.get(f).push(r); }
+  const chip = (id, label, n) => `<button class="seg ${filter === id ? 'on' : ''}" type="button" data-filter="${id}">${label} <span>${n}</span></button>`;
+  const modeChips = modes.length ? `<div class="segs">${[null, ...modes].map((m) => `<button class="seg ${m === mode ? 'on' : ''}" type="button" data-mode="${esc(m || '')}">${esc(m || 'Default')}</button>`).join('')}</div>` : '';
+  root.innerHTML = `<div class="card board">
+    <div class="board-head">
+      <div class="segs">${chip('changed', 'Changed', changedRows.length)}${chip('new', 'New', rows.filter((r) => r.c?.kind === 'added').length)}${chip('all', 'All', rows.length)}</div>
+      ${modeChips}
+      <span class="board-key"><i></i>Changed since the last sync · the corner shows the old colour</span>
+    </div>
+    ${shown.length ? [...families].map(([f, list]) => `<section class="fam"><h3><span class="mono">${esc(f)}</span><span>${list.length}</span></h3><div class="toks">${list.map(tokenTile).join('')}</div></section>`).join('')
+      : `<div class="empty"><h2>Nothing here</h2><p>${filter === 'changed' ? 'Every token matches the last sync in this mode.' : 'No tokens match this filter.'}</p></div>`}
+  </div>`;
+  root.querySelectorAll('[data-filter]').forEach((b) => b.addEventListener('click', () => { tokenFilter = b.dataset.filter; renderTokensPage(changes); }));
+  root.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { tokenMode = b.dataset.mode || null; renderTokensPage(changes); }));
+}
+
+/* ---------- brand: the accent follows the team's own primary colour when it reads well on white ---------- */
+function luminance(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function applyBrand() {
+  const root = document.documentElement.style;
+  const key = previewParts(live.head).fill;
+  const hex = key && live.head[key].value;
+  if (hex && /^#[0-9A-F]{6}$/i.test(hex) && 1.05 / (luminance(hex) + 0.05) >= 3) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    root.setProperty('--accent', hex); root.setProperty('--accent-ink', hex); root.setProperty('--accent-wash', `rgba(${r}, ${g}, ${b}, 0.08)`);
+  } else { ['--accent', '--accent-ink', '--accent-wash'].forEach((p) => root.removeProperty(p)); }
+}
+/* The tab icon shows the Venn mark, with an amber dot while Figma is behind. */
+function setFavicon(drift) {
+  const dot = drift ? '<circle cx="25" cy="7" r="6" fill="#f59e0b" stroke="#fff" stroke-width="2"/>' : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="12" cy="16" r="8" fill="none" stroke="#18181b" stroke-width="2.4"/><circle cx="20" cy="16" r="8" fill="none" stroke="#1f5fd0" stroke-width="2.4"/>${dot}</svg>`;
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.append(link); }
+  link.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
 /* The Venn mark. Figma (hatched) and code (cobalt) as two discs; their overlap is drawn as a solid
@@ -326,87 +436,36 @@ function renderDashboard(changes, commits) {
   const head = live.commits[0];
   sub.innerHTML = `Watching <span class="mono">${esc(workspace.path)}</span> in ${esc(workspace.repo)}`;
 
-  const banner = changes.length
-    ? `<div class="card banner drift">
-        ${vennMark({ drift: changes.length })}
-        <div class="banner-copy">
+  const wipe = wipeHtml(changes.length);
+  const hero = changes.length
+    ? `<div class="card hero drift">
+        <div class="hero-copy">
           <span class="pill warn">Needs review</span>
-          <h2>${changes.length === 1 ? '1 token changed' : changes.length + ' tokens changed'} in code since the last sync</h2>
+          <div class="hero-figure"><span class="big">${changes.length}</span><span>${changes.length === 1 ? 'token changed' : 'tokens changed'} in code since the last sync</span></div>
           <p>${plural(commits.length, 'push', 'pushes')} since then, latest <span class="mono">${esc(short(head.sha))}</span> “${esc(head.message)}” ${head.date ? esc(ago(head.date)) : ''}</p>
           <p class="sync-note">${syncNote()}</p>
+          <div class="hero-actions"><button class="button primary" id="applyButton" type="button">${icon('figma')}Apply in Figma</button><button class="button" type="button" data-goto="tokens">See what changed</button></div>
         </div>
-        <div class="banner-actions"><button class="button primary" id="applyButton" type="button">${icon('figma')}Apply in Figma</button></div>
+        ${wipe || `<div class="hero-mark">${vennMark({ drift: changes.length })}</div>`}
       </div>`
-    : `<div class="card banner sync">
-        ${vennMark({ drift: 0 })}
-        <div class="banner-copy">
+    : `<div class="card hero sync">
+        <div class="hero-copy">
           <span class="pill good">In step</span>
-          <h2>Figma matches your code</h2>
-          <p>Every token matches <span class="mono">${esc(short(workspace.syncedSha))}</span>. Venn checks GitHub every minute while this page is open.</p>
+          <div class="hero-figure"><span class="big">${icon('check')}</span><span>Figma matches your code</span></div>
+          <p>Every colour and number token matches code at <span class="mono">${esc(short(head.sha))}</span>. Venn checks GitHub every minute while this page is open.</p>
         </div>
+        ${wipe || `<div class="hero-mark">${vennMark({ drift: 0 })}</div>`}
       </div>`;
 
-  const kindLabel = (c) => (c.kind === 'changed' ? 'Changed' : c.kind === 'added' ? 'New in code' : 'Removed');
-  const lastTouch = (n) => { const hit = live.commits.find((c) => live.timeline.find((x) => x.commit.sha === c.sha)?.changed.has(n)); return hit ? `<span class="commit-ref"><span class="mono">${esc(short(hit.sha))}</span><span class="msg">${esc(hit.message)}</span></span>` : '—'; };
-  const driftTable = changes.length
-    ? `<div class="card">
-        <div class="card-head"><div><h2>What changed</h2><p>${workspace.confirmedAt ? 'Last synced is what the plugin confirmed in Figma.' : 'Last synced is the commit Venn assumes Figma matches. The plugin shows exactly what is in your file.'} Nothing in Figma moves until you apply it.</p></div></div>
-        <div class="table-scroll"><table class="table">
-          <thead><tr><th>Token</th><th>Last synced</th><th>Code</th><th>Changed in</th></tr></thead>
-          <tbody>${changes.map((c, i) => `<tr class="change ${i >= 8 ? 'more-row hidden' : ''}">
-            <td><div class="token-cell">${vennFor(c)}<span><span class="mono">${esc(c.token || c.name)}</span>${modeTag(c.mode)}<small>${kindLabel(c)}${c.beforeAlias !== c.afterAlias && c.before === c.after ? ' · same colour, new alias' : ''}</small></span></div></td>
-            <td class="num from">${formatCell(c.type, c.before, c.beforeAlias)}</td>
-            <td class="num to">${formatCell(c.type, c.after, c.afterAlias)}</td>
-            <td>${lastTouch(c.name)}</td>
-          </tr>`).join('')}</tbody>
-        </table></div>
-        ${changes.length > 8 ? `<button class="show-more" id="showMore" type="button">Show all ${changes.length}</button>` : ''}
-      </div>`
-    : '';
-
-  const pendingSet = new Set(commits.map((c) => c.sha));
-  const statusFor = (c) => pendingSet.has(c.sha) ? '<span class="pill warn">Not synced</span>' : c.sha === workspace.syncedSha ? '<span class="pill good">Last synced</span>' : '<span class="pill neutral">Earlier</span>';
-  const changedCount = (sha) => { const x = live.timeline.find((y) => y.commit.sha === sha); return x ? (x.first ? '—' : x.changed.size) : '—'; };
-  const pushes = `<div class="card">
-      <div class="card-head"><div><h2>Recent pushes</h2><p>Every commit that touched the token file</p></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">GitHub${icon('external')}</a></div>
-      <div class="table-scroll"><table class="table">
-        <thead><tr><th>Commit</th><th>Author</th><th>Pushed</th><th class="num">Tokens</th><th>Status</th></tr></thead>
-        <tbody>${live.commits.slice(0, 8).map((c) => `<tr class="${pendingSet.has(c.sha) ? 'commit-row' : 'commit-row-synced'}">
-          <td><div class="commit-cell"><a class="mono sha" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(short(c.sha))}</a><span class="msg">${esc(c.message)}</span></div></td>
-          <td>${esc(c.author)}</td>
-          <td class="muted">${c.date ? esc(ago(c.date)) : '—'}</td>
-          <td class="num">${changedCount(c.sha)}</td>
-          <td>${statusFor(c)}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-    </div>`;
-
-  body.innerHTML = `${banner}${driftTable}${pushes}`;
+  body.innerHTML = `${hero}${statsHtml(changes, commits)}${timelineHtml(commits)}`;
   if (changes.length) $('applyButton').addEventListener('click', () => openModal());
-  const more = $('showMore');
-  if (more) more.addEventListener('click', () => {
-    const rows = body.querySelectorAll('.more-row');
-    const open = rows[0].classList.contains('hidden');
-    rows.forEach((r) => r.classList.toggle('hidden', !open));
-    more.textContent = open ? 'Show fewer' : `Show all ${changes.length}`;
-  });
-  renderTokensPage(changes);
-}
-
-function hasPreviewTokens() {
-  return !!(live.head && live.synced && (live.head['radius/button'] || live.head['action/primary']));
-}
-
-function renderTokensPage(changes) {
-  const root = $('tokensBody');
-  if (live.loading || live.error || !live.head) { root.innerHTML = live.error ? `<div class="notice">${esc(live.error)}</div>` : '<div class="skeleton"></div>'; return; }
-  root.innerHTML = `${renderMap()}<div class="grid-2 tokens-grid">${renderInventory(changes)}${hasPreviewTokens() ? previewCard() : ''}</div>`;
-  root.querySelectorAll('[data-more]').forEach((btn) => btn.addEventListener('click', () => {
-    const rows = btn.parentElement.querySelectorAll('.more-row');
-    const open = rows[0].classList.contains('hidden');
-    rows.forEach((r) => r.classList.toggle('hidden', !open));
-    btn.textContent = open ? 'Show fewer' : `Show all ${rows.length + 12}`;
+  const range = $('wipeRange');
+  if (range) range.addEventListener('input', () => range.parentElement.style.setProperty('--x', range.value + '%'));
+  body.querySelectorAll('[data-chips]').forEach((btn) => btn.addEventListener('click', () => {
+    btn.parentElement.querySelectorAll('.more-chip').forEach((x) => x.classList.remove('hidden'));
+    btn.remove();
   }));
+  renderTokensPage(changes);
 }
 
 function renderHistory() {

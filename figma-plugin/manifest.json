@@ -1,5 +1,5 @@
 {
-  "name": "Venn — Penny Demo",
+  "name": "Venn \u2014 Penny Demo",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -11,5 +11,6 @@
       "https://venn-peach-eight.vercel.app"
     ],
     "reasoning": "Read the Venn published Penny design token snapshot."
-  }
+  },
+  "enablePrivatePluginApi": true
 }

@@ -4,67 +4,142 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  :root { --ink:#1d1d1f; --ink-2:#5f6368; --ink-3:#8e9196; --line:#e7e7e4; --accent:#0a7a4b; --accent-soft:#e8f4ee; --warn:#9a5b00; --warn-soft:#fbf1df; --danger:#b3261e;
-    font: 12.5px/1.5 -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif; color: var(--ink); background: #fff; -webkit-font-smoothing: antialiased; }
+  /* Same system as the Venn site: graphite layers, one cobalt accent, amber for drift. */
+  :root {
+    --window: #f4f4f5; --card: #fff; --raised: #f4f4f5; --ink: #18181b; --ink-2: #52525b; --ink-3: #71717a;
+    --line: rgba(24,24,27,.07); --line-2: rgba(24,24,27,.13); --accent: #1f5fd0; --accent-ink: #1a4fae; --accent-wash: rgba(31,95,208,.07);
+    --amber: #f59e0b; --warn: #b45309; --warn-bg: #fef3c7; --good: #15803d; --good-bg: #dcfce7; --bad: #dc2626; --bad-bg: #fef2f2;
+    --shadow: 0 1px 2px rgba(24,24,27,.04);
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    font: 400 12.5px/18px var(--sans); color: var(--ink); background: var(--window); -webkit-font-smoothing: antialiased;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 20px; }
-  h1 { font-size: 17px; letter-spacing: -0.015em; margin: 0; }
+  html, body { margin: 0; height: 100%; background: var(--window); }
+  body { display: flex; flex-direction: column; }
   p { margin: 0; }
-  .sub { color: var(--ink-2); margin-top: 4px; }
-  details { margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; }
-  summary { cursor: pointer; padding: 10px 12px; color: var(--ink-2); font-weight: 550; list-style: none; }
-  summary::-webkit-details-marker { display: none; }
-  .config { padding: 0 12px 12px; display: grid; gap: 8px; }
-  label span { display: block; color: var(--ink-2); font-size: 11.5px; margin-bottom: 3px; font-weight: 550; }
-  input, select { width: 100%; height: 32px; border: 1px solid #d6d6d2; border-radius: 7px; padding: 0 9px; font: inherit; background: #fff; }
-  .status { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 4px 0 10px; }
-  .status strong { font-size: 13.5px; }
-  .tag { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; background: var(--warn-soft); color: var(--warn); white-space: nowrap; }
-  .tag.ok { background: var(--accent-soft); color: var(--accent); }
-  .rows { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  .row { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; }
-  .row + .row { border-top: 1px solid var(--line); }
-  .row.muted { color: var(--ink-3); }
-  .name { font-weight: 600; overflow-wrap: anywhere; }
-  .name small { display: block; font-weight: 400; color: var(--ink-3); }
-  .vals { font: 11.5px ui-monospace, Menlo, monospace; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
-  .old { color: var(--ink-3); text-decoration: line-through; }
-  .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); display: inline-block; vertical-align: -2px; margin-right: 3px; }
-  .consent { display: flex; gap: 8px; align-items: flex-start; margin: 14px 0; color: var(--ink-2); }
-  .consent input, .row input { width: 15px; height: 15px; margin: 0; accent-color: var(--ink); }
-  .actions { display: flex; gap: 8px; }
-  button { font: inherit; font-weight: 600; height: 34px; border-radius: 999px; padding: 0 16px; border: 1px solid #d6d6d2; background: #fff; cursor: pointer; }
-  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); flex: 1; }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  .msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 9px; background: #f5f5f3; color: var(--ink-2); }
-  .msg.error { background: #fdeceb; color: var(--danger); }
-  .msg.ok { background: var(--accent-soft); color: var(--accent); }
-  .note { color: var(--ink-3); font-size: 11.5px; margin-top: 14px; }
+  .mono { font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
   .hidden { display: none !important; }
+
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 12px; }
+  .brand { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 14px; letter-spacing: -.01em; }
+  .brand svg { width: 22px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .source { margin-left: auto; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 7px; background: var(--card); box-shadow: var(--shadow), 0 0 0 1px var(--line); color: var(--ink-2); max-width: 220px; cursor: pointer; border: 0; font: inherit; }
+  .source span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .source .live { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex: none; }
+  .source.error .live { background: var(--bad); }
+
+  .scroll { flex: 1; overflow-y: auto; padding: 0 12px 12px; display: grid; gap: 10px; align-content: start; }
+  .card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow), 0 0 0 1px var(--line); }
+
+  .settings { padding: 12px; display: grid; gap: 8px; }
+  label span { display: block; color: var(--ink-2); font-size: 11.5px; margin-bottom: 4px; font-weight: 500; }
+  input:not([type=checkbox]), select { width: 100%; height: 30px; border: 1px solid var(--line-2); border-radius: 7px; padding: 0 9px; font: 12px var(--mono); background: #fff; color: var(--ink); }
+  select { font-family: var(--sans); }
+  input:not([type=checkbox]):focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .stat { padding: 12px 14px; display: grid; gap: 2px; }
+  .stat + .stat { border-left: 1px solid var(--line); }
+  .stat small { color: var(--ink-3); font-size: 11px; }
+  .stat strong { font-size: 20px; line-height: 26px; font-weight: 500; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat.warn strong { color: var(--warn); }
+  .commit { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); color: var(--ink-2); }
+  .commit .commit-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .commit .mono { color: var(--ink-3); flex: none; }
+
+  .list-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 8px; }
+  .list-head strong { font-weight: 500; font-size: 13px; }
+  .select-all { border: 0; background: none; color: var(--accent-ink); font: inherit; font-weight: 500; cursor: pointer; padding: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .pill::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.good { background: var(--good-bg); color: var(--good); }
+  .pill.neutral { background: var(--raised); color: var(--ink-3); }
+
+  .row { display: grid; grid-template-columns: 16px 32px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 48px; padding: 6px 14px; border-top: 1px solid var(--line); cursor: pointer; transition: background-color 120ms; }
+  .row:hover { background: #fcfcfc; }
+  .row.picked { background: var(--accent-wash); }
+  .row.muted { cursor: default; grid-template-columns: 16px 32px minmax(0, 1fr) auto; }
+  .row.muted:hover { background: none; }
+  .row input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+  .name { min-width: 0; }
+  .name .mono { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12px; }
+  .name small { color: var(--ink-3); font-size: 11px; }
+  .vals { display: flex; align-items: center; gap: 6px; font: 11.5px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .vals > span { display: inline-flex; align-items: center; line-height: 16px; }
+  .vals .chip { vertical-align: 0; margin-top: 0; }
+  .vals .from { color: var(--ink-3); }
+  .vals .to { color: var(--accent-ink); font-weight: 600; }
+  .vals .arrow { color: var(--ink-3); }
+  .chip { width: 10px; height: 10px; border-radius: 3px; display: inline-block; vertical-align: -1px; margin-right: 4px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); }
+  .venn { width: 32px; height: 24px; overflow: visible; }
+  .venn .f { fill: none; stroke: #a1a1aa; stroke-width: 1.4; stroke-dasharray: 3 2.5; }
+  .venn .c { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.4; }
+  .venn .sw { stroke: rgba(0,0,0,.14); stroke-width: 1; }
+  .venn .swc { mix-blend-mode: multiply; }
+  .venn .t { stroke: var(--ink-3); stroke-width: 1; }
+  .empty-row { padding: 18px 14px; border-top: 1px solid var(--line); color: var(--ink-3); text-align: center; }
+
+  .msg { padding: 10px 12px; border-radius: 10px; background: var(--card); box-shadow: var(--shadow), 0 0 0 1px var(--line); color: var(--ink-2); }
+  .msg.error { background: var(--bad-bg); color: var(--bad); box-shadow: 0 0 0 1px rgba(220,38,38,.15); }
+  .msg.ok { background: var(--good-bg); color: var(--good); box-shadow: 0 0 0 1px rgba(21,128,61,.15); }
+  .note { color: var(--ink-3); font-size: 11px; padding: 0 4px; }
+
+  footer { padding: 12px 16px 14px; background: var(--card); border-top: 1px solid var(--line); display: grid; gap: 10px; }
+  .consent { display: flex; gap: 8px; align-items: flex-start; color: var(--ink-2); cursor: pointer; }
+  .consent input { width: 15px; height: 15px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
+  .consent.off { opacity: .5; cursor: default; }
+  .actions { display: flex; gap: 8px; }
+  button.b { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); font: 500 12.5px var(--sans); cursor: pointer; box-shadow: var(--shadow); transition: background-color 120ms, transform 120ms; }
+  button.b:hover:not(:disabled) { background: var(--raised); }
+  button.b:active:not(:disabled) { transform: scale(.98); }
+  button.b.primary { flex: 1; background: linear-gradient(#2a2a2e, #18181b); border-color: #18181b; color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(0,0,0,.12); }
+  button.b.primary:hover:not(:disabled) { background: #000; }
+  button.b:disabled { opacity: .4; cursor: not-allowed; }
+  button.b svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 </style>
 </head>
 <body>
-<h1>Venn</h1>
-<p class="sub" id="sub">Checking GitHub and this file…</p>
+<header>
+  <div class="brand"><svg viewBox="0 0 28 18" aria-hidden="true"><circle cx="10" cy="9" r="7"/><circle cx="18" cy="9" r="7"/></svg>Venn</div>
+  <button class="source" id="sourceButton" type="button" title="Source and collection"><span class="live"></span><span id="sourceLabel">Connecting</span></button>
+</header>
 
-<details id="settings">
-  <summary>Source and collection</summary>
-  <div class="config">
+<div class="scroll">
+  <div class="card settings hidden" id="settings">
     <label><span>Repository</span><input id="repo" spellcheck="false"></label>
     <label><span>Token file</span><input id="path" spellcheck="false"></label>
     <label><span>Variable collection</span><select id="collection"><option value="">First collection</option></select></label>
-    <button id="save">Save and check</button>
+    <button class="b" id="save" type="button">Save and check</button>
   </div>
-</details>
 
-<div class="status"><strong id="summary">—</strong><span class="tag hidden" id="tag"></span></div>
-<div class="rows" id="rows"></div>
+  <div class="card">
+    <div class="stats">
+      <div class="stat warn" id="statDiffer"><small>To review</small><strong id="nDiffer">–</strong></div>
+      <div class="stat"><small>Matching</small><strong id="nMatch">–</strong></div>
+      <div class="stat"><small>Not applicable</small><strong id="nOther">–</strong></div>
+    </div>
+    <div class="commit"><span class="mono" id="sha">———————</span><span class="commit-msg" id="sub">Checking GitHub and this file</span></div>
+  </div>
 
-<label class="consent"><input type="checkbox" id="consent" disabled><span>I reviewed the selected changes and want to update this file.</span></label>
-<div class="actions"><button id="refresh">Check again</button><button class="primary" id="apply" disabled>Apply in Figma</button></div>
-<div class="actions hidden" id="receiptRow" style="margin-top:8px"><button class="primary" id="download">Download receipt</button></div>
-<p class="msg hidden" id="msg" role="status"></p>
-<p class="note">Venn only edits variables you tick, reads each value back, and undoes the whole run if any value does not match. It never runs in the background.</p>
+  <div class="card">
+    <div class="list-head"><strong id="summary">Differences</strong><span id="tagWrap"><span class="pill neutral" id="tag">Checking</span></span></div>
+    <div id="rows"></div>
+  </div>
+
+  <p class="msg hidden" id="msg" role="status"></p>
+  <p class="note">Venn only edits variables you tick, reads each value back, and undoes the whole run if any value does not match. It never runs in the background.</p>
+</div>
+
+<footer>
+  <label class="consent off" id="consentWrap"><input type="checkbox" id="consent" disabled><span>I reviewed the selected changes and want to update this file</span></label>
+  <div class="actions">
+    <button class="b" id="refresh" type="button" title="Check again"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>Check</button>
+    <button class="b primary" id="apply" type="button" disabled>Apply in Figma</button>
+  </div>
+  <div class="actions hidden" id="receiptRow"><button class="b primary" id="download" type="button"><svg viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>Download receipt</button></div>
+</footer>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -72,14 +147,31 @@ const post = (msg) => parent.postMessage({ pluginMessage: msg }, '*');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let rows = [], receipt = null;
 
-const fmt = (type, v) => v === undefined || v === null ? '—' : type === 'color' ? `<span class="sw" style="background:${esc(v)}"></span>${esc(v)}` : esc(v);
-const LABEL = { match: 'Matches', missing: 'Not in Figma (not created)', type: 'Different type in Figma', alias: 'Uses an alias in Figma', unsupported: 'Unsupported value in Figma' };
+const fmt = (type, v) => v === undefined || v === null ? '—' : type === 'color' ? `<span class="chip" style="background:${esc(v)}"></span>${esc(v)}` : esc(v);
+const LABEL = { match: 'Matches code', missing: 'Not in Figma, not created', type: 'Different type in Figma', alias: 'Alias in Figma, left alone', unsupported: 'Unsupported value in Figma' };
+
+// Figma's value (dashed) over code's value (cobalt), same drawing as the website.
+function venn(r) {
+  if (r.type === 'color') {
+    const a = r.figma ? `<circle class="sw" cx="11" cy="12" r="9" fill="${esc(r.figma)}"/>` : `<circle class="f" cx="11" cy="12" r="9"/>`;
+    return `<svg class="venn" viewBox="0 0 32 24" aria-hidden="true">${a}<circle class="sw swc" cx="21" cy="12" r="9" fill="${esc(r.code)}"/></svg>`;
+  }
+  const before = typeof r.figma === 'number' ? r.figma : 0, after = r.code;
+  if (/radius/.test(r.name)) {
+    const k = (v) => Math.max(0, Math.min(9, v));
+    return `<svg class="venn" viewBox="0 0 32 24" aria-hidden="true"><rect class="c" x="3" y="4" width="26" height="16" rx="${k(after)}"/><rect class="f" x="3" y="4" width="26" height="16" rx="${k(before)}"/></svg>`;
+  }
+  const max = Math.max(before, after, 1), w = (v) => Math.max(2, Math.round((v / max) * 26));
+  return `<svg class="venn" viewBox="0 0 32 24" aria-hidden="true"><line class="t" x1="3" y1="4" x2="3" y2="20"/><rect class="f" x="3" y="6" width="${w(before)}" height="5" rx="1.5"/><rect class="c" x="3" y="13" width="${w(after)}" height="5" rx="1.5"/></svg>`;
+}
 
 function message(text, kind) { const m = $('msg'); m.textContent = text; m.className = 'msg ' + (kind || ''); }
 function selected() { return Array.from(document.querySelectorAll('.pick:checked')).map((i) => i.value); }
 function syncButtons() {
   const n = selected().length;
+  document.querySelectorAll('.pick').forEach((i) => i.closest('.row').classList.toggle('picked', i.checked));
   $('consent').disabled = n === 0;
+  $('consentWrap').classList.toggle('off', n === 0);
   if (!n) $('consent').checked = false;
   $('apply').disabled = !(n && $('consent').checked);
   $('apply').textContent = n ? `Apply ${n} ${n === 1 ? 'change' : 'changes'} in Figma` : 'Apply in Figma';
@@ -87,24 +179,38 @@ function syncButtons() {
 function render(data) {
   rows = data.rows;
   const differs = rows.filter((r) => r.status === 'differs');
-  $('sub').textContent = `${data.collection} · ${data.sha.slice(0, 7)} ${data.message}`;
-  $('summary').textContent = differs.length ? `${differs.length} ${differs.length === 1 ? 'difference' : 'differences'} with code` : 'Figma matches code';
-  $('tag').textContent = differs.length ? 'Needs review' : 'Up to date';
-  $('tag').className = 'tag' + (differs.length ? '' : ' ok');
+  const matches = rows.filter((r) => r.status === 'match');
+  $('nDiffer').textContent = differs.length;
+  $('nMatch').textContent = matches.length;
+  $('nOther').textContent = rows.length - differs.length - matches.length;
+  $('statDiffer').classList.toggle('warn', differs.length > 0);
+  $('sha').textContent = data.sha.slice(0, 7);
+  $('sub').textContent = data.message;
+  $('sourceLabel').textContent = `${data.collection}`;
+  $('sourceButton').classList.remove('error');
+  $('summary').textContent = differs.length ? 'Differences with code' : 'All variables';
+  $('tagWrap').innerHTML = differs.length
+    ? `<button class="select-all" id="selectAll" type="button">Select all</button>`
+    : `<span class="pill good">Up to date</span>`;
   const order = { differs: 0, missing: 1, type: 1, alias: 1, unsupported: 1, match: 2 };
-  $('rows').innerHTML = rows.slice().sort((a, b) => order[a.status] - order[b.status]).map((r) => r.status === 'differs'
-    ? `<label class="row"><input type="checkbox" class="pick" value="${esc(r.name)}"><span class="name">${esc(r.name)}<small>${esc(r.type)}</small></span><span class="vals"><span class="old">${fmt(r.type, r.figma)}</span>→<span>${fmt(r.type, r.code)}</span></span></label>`
-    : `<div class="row muted"><span></span><span class="name">${esc(r.name)}<small>${esc(LABEL[r.status])}</small></span><span class="vals">${fmt(r.type, r.status === 'match' ? r.figma : r.code)}</span></div>`).join('');
+  const sorted = rows.slice().sort((a, b) => order[a.status] - order[b.status]);
+  $('rows').innerHTML = sorted.length ? sorted.map((r) => r.status === 'differs'
+    ? `<label class="row"><input type="checkbox" class="pick" value="${esc(r.name)}">${venn(r)}<span class="name"><span class="mono">${esc(r.name)}</span><small>Figma differs from code</small></span><span class="vals"><span class="from">${fmt(r.type, r.figma)}</span><span class="arrow">→</span><span class="to">${fmt(r.type, r.code)}</span></span></label>`
+    : `<div class="row muted"><span></span><span></span><span class="name"><span class="mono">${esc(r.name)}</span><small>${esc(LABEL[r.status])}</small></span><span class="vals">${r.status === 'match' ? fmt(r.type, r.figma) : `<span class="pill neutral">${r.status === 'missing' ? 'Missing' : 'Skipped'}</span>`}</span></div>`).join('')
+    : `<div class="empty-row">No colour or number tokens found in this file</div>`;
   const sel = $('collection');
   sel.innerHTML = '<option value="">First collection</option>' + data.collections.map((c) => `<option ${c === data.collection ? 'selected' : ''}>${esc(c)}</option>`).join('');
   document.querySelectorAll('.pick').forEach((i) => i.addEventListener('change', syncButtons));
+  const all = $('selectAll');
+  if (all) all.onclick = () => { const picks = document.querySelectorAll('.pick'); const on = Array.from(picks).some((i) => !i.checked); picks.forEach((i) => { i.checked = on; }); all.textContent = on ? 'Clear' : 'Select all'; syncButtons(); };
   syncButtons();
 }
 function check(config) { $('apply').disabled = true; message('Checking GitHub and this file…'); post({ type: 'check', config }); }
 
+$('sourceButton').onclick = () => $('settings').classList.toggle('hidden');
 $('consent').onchange = syncButtons;
 $('refresh').onclick = () => check({ repo: $('repo').value, path: $('path').value, collection: $('collection').value });
-$('save').onclick = () => { $('settings').open = false; $('refresh').onclick(); };
+$('save').onclick = () => { $('settings').classList.add('hidden'); $('refresh').onclick(); };
 $('apply').onclick = () => { const names = selected(); $('apply').disabled = true; message('Applying and reading values back…'); post({ type: 'apply', names, confirmed: $('consent').checked }); };
 $('download').onclick = () => {
   if (!receipt) return;
@@ -122,7 +228,7 @@ window.onmessage = (e) => {
     $('receiptRow').classList.remove('hidden');
     message(`Updated ${receipt.changes.length} ${receipt.changes.length === 1 ? 'variable' : 'variables'}. Figma confirmed every value. Download the receipt and import it in Venn.`, 'ok');
   }
-  if (m.type === 'error') { message(m.message, 'error'); syncButtons(); }
+  if (m.type === 'error') { message(m.message, 'error'); $('sourceButton').classList.add('error'); syncButtons(); }
 };
 post({ type: 'init' });
 </script>

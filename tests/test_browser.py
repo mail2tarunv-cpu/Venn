@@ -105,7 +105,7 @@ with sync_playwright() as p:
         # Overview: a banner says what happened, one token to review, starting from the commit before the latest.
         page.locator(".banner").wait_for()
         assert "1 token changed since Figma was last updated" in page.locator(".banner h2").inner_text()
-        assert "assumed" in page.locator(".sync-note").inner_text(), "the starting point is labelled as an assumption"
+        assert "Comparing with" in page.locator(".sync-note").inner_text() and page.locator(".sync-note a").inner_text() == "Change"
         assert page.locator(".change").count() == 1
         assert "radius/button" in page.locator(".change").inner_text()
         assert "Changed" in page.locator(".group-row").first.inner_text(), "changes are grouped by kind"

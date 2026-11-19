@@ -258,15 +258,15 @@ function changeTable(changes) {
   if (!changes.length) return '';
   const lastTouch = (n) => { const hit = live.commits.find((c) => live.timeline.find((x) => x.commit.sha === c.sha)?.changed.has(n)); return hit ? `<a class="commit-ref" href="${esc(hit.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">${esc(short(hit.sha))}</span><span class="msg">${esc(hit.message)}</span></a>` : '<span class="none">—</span>'; };
   const groups = [
-    ['changed', 'Changed', 'New values for tokens Figma already has'],
-    ['added', 'New in code', 'Venn can create these variables in Figma'],
-    ['removed', 'Removed from code', 'Venn never deletes variables. Remove them in Figma once nothing uses them'],
+    ['changed', 'Changed', ''],
+    ['added', 'New in code', ''],
+    ['removed', 'Removed from code', 'Not deleted from Figma'],
   ];
   let i = 0;
   const rows = groups.map(([kind, title, note]) => {
     const list = changes.filter((c) => c.kind === kind);
     if (!list.length) return '';
-    return `<tr class="group-row"><td colspan="4"><strong>${title}</strong><span class="n">${list.length}</span><span class="note">${note}</span></td></tr>`
+    return `<tr class="group-row"><td colspan="4"><strong>${title}</strong><span class="n">${list.length}</span>${note ? `<span class="note">${note}</span>` : ''}</td></tr>`
       + list.map((c) => `<tr class="change ${i++ >= 12 ? 'more-row hidden' : ''}">
           <td><div class="token-cell">${specimenPair(c)}<span class="token-name">${esc(c.token || c.name)}${modeTag(c.mode)}${c.beforeAlias !== c.afterAlias && c.before === c.after ? '<small>Same value, now points at a different token</small>' : ''}</span></div></td>
           <td class="num from">${formatCell(c.type, c.before, c.beforeAlias)}</td>
@@ -275,7 +275,7 @@ function changeTable(changes) {
         </tr>`).join('');
   }).join('');
   return `<div class="card">
-    <div class="card-head"><div><h2>What changed</h2><p>Last synced is ${workspace.confirmedAt ? 'what the plugin confirmed in Figma' : 'the commit Venn assumes Figma matches'}. Nothing in Figma moves until you apply it.</p></div></div>
+    <div class="card-head"><div><h2>What changed</h2></div></div>
     <div class="table-scroll"><table class="table changes-table">
       <thead><tr><th>Token</th><th>Last synced</th><th>Code</th><th>Changed in</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -306,7 +306,7 @@ function pushesCard(pendingCommits) {
       <tr class="push-detail hidden"><td colspan="5">${detail}</td></tr>`;
   }).join('');
   return `<div class="card">
-    <div class="card-head"><div><h2>Pushes</h2><p>Every commit that touched the token file. Open one to see what it changed.</p></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">GitHub${icon('external')}</a></div>
+    <div class="card-head"><div><h2>Pushes</h2></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">GitHub${icon('external')}</a></div>
     <div class="table-scroll"><table class="table">
       <thead><tr><th>Commit</th><th>Author</th><th>Pushed</th><th class="num">Changes</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -365,7 +365,7 @@ function renderTokensPage(changes) {
     <div class="board-head">
       <div class="segs">${chip('changed', 'Changed', changedRows.length)}${chip('new', 'New', rows.filter((r) => r.c?.kind === 'added').length)}${chip('all', 'All', rows.length)}</div>
       ${modeChips}
-      <span class="board-key"><i></i>Changed since the last sync · the corner shows the old colour</span>
+      <span class="board-key"><i></i>Changed</span>
     </div>
     ${shown.length ? [...families].map(([f, list]) => `<section class="fam"><h3><span>${esc(f[0].toUpperCase() + f.slice(1))}</span><span>${list.length}</span></h3><div class="toks">${list.map(tokenTile).join('')}</div></section>`).join('')
       : `<div class="empty"><h2>Nothing here</h2><p>${filter === 'changed' ? 'Every token matches the last sync in this mode.' : 'No tokens match this filter.'}</p></div>`}
@@ -427,8 +427,8 @@ function vennMark({ drift = 0, animate = false } = {}) {
 function syncNote() {
   const sha = `<span class="mono">${esc(short(workspace.syncedSha))}</span>`;
   return workspace.confirmedAt
-    ? `Last synced ${sha}, confirmed by the plugin ${esc(ago(workspace.confirmedAt))}`
-    : `Comparing with ${sha}, assumed to be what Figma has. <a href="#" data-goto="connections">Change</a>`;
+    ? `Synced with ${sha} ${esc(ago(workspace.confirmedAt))}`
+    : `Comparing with ${sha} · <a href="#" data-goto="connections" title="Pick the commit your Figma file matches">Change</a>`;
 }
 
 function renderDashboard(changes, commits) {
@@ -461,7 +461,7 @@ function renderDashboard(changes, commits) {
         ${vennMark({ drift: 0 })}
         <div class="banner-copy">
           <h2>Figma matches your code</h2>
-          <p>Every colour and number token matches <a class="mono sha" href="${esc(head.url)}" target="_blank" rel="noopener noreferrer">${esc(short(head.sha))}</a>. Venn checks GitHub every minute while this page is open.</p>
+          <p>Every colour and number token matches <a class="mono sha" href="${esc(head.url)}" target="_blank" rel="noopener noreferrer">${esc(short(head.sha))}</a>.</p>
         </div>
       </div>`;
 

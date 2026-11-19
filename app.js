@@ -244,8 +244,8 @@ function specimenPair(c) {
     const box = (v) => (v === null ? '<i class="sp-box none"></i>' : `<i class="sp-box" style="border-radius:${Math.min(v, 12)}px"></i>`);
     return `<span class="sp" aria-hidden="true">${box(n(a))}<span class="sp-arrow">→</span>${box(n(b))}</span>`;
   }
-  if (/(font|text|line-?height|size)/i.test(c.name) && !/spac/i.test(c.name)) {
-    const aa = (v) => (v === null ? '<i class="sp-aa none">Aa</i>' : `<i class="sp-aa" style="font-size:${Math.max(9, Math.min(v * 0.8, 22))}px">Aa</i>`);
+  if (/(font|text|size)/i.test(c.name) && !/(spac|line-?height|weight)/i.test(c.name)) {
+    const aa = (v) => (v === null ? '<i class="sp-aa none"></i>' : `<i class="sp-aa" style="font-size:${Math.max(9, Math.min(v * 0.8, 22))}px">Aa</i>`);
     return `<span class="sp" aria-hidden="true">${aa(n(a))}<span class="sp-arrow">→</span>${aa(n(b))}</span>`;
   }
   const max = Math.max(n(a) || 0, n(b) || 0, 1);

@@ -498,7 +498,7 @@ a.sha:hover { color: var(--accent-ink); text-decoration: underline; text-underli
 .sp-sw { width: 24px; height: 24px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(24, 24, 27, 0.12); display: block; }
 .sp-box { width: 28px; height: 22px; border: 1.5px solid var(--ink-2); display: block; box-sizing: border-box; }
 .sp-box + .sp-arrow + .sp-box, .sp-box:last-child { border-color: var(--accent); }
-.sp-aa { font-style: normal; font-weight: 600; color: var(--ink-3); line-height: 1; }
+.sp-aa { font-style: normal; font-weight: 600; color: var(--ink-3); line-height: 1; display: grid; place-items: center; }
 .sp-aa:last-child { color: var(--ink); }
 .sp-bar { height: 8px; border-radius: 2px; background: var(--ink-3); display: block; justify-self: start; }
 .sp-bar:last-child { background: var(--accent); }

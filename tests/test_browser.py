@@ -4,7 +4,7 @@ Serves the repository over local HTTP and drives the real UI with GitHub mocked,
 onboarding, change detection, a new push arriving, receipt import, bad receipts, and three screen widths.
 Browser lookup: CHROMIUM_PATH, common system paths, then Playwright's bundled Chromium.
 """
-import functools, http.server, json, os, pathlib, shutil, tempfile, threading
+import base64, functools, http.server, json, os, pathlib, shutil, tempfile, threading
 from playwright.sync_api import sync_playwright
 
 root = pathlib.Path(__file__).resolve().parents[1]
@@ -76,8 +76,20 @@ with sync_playwright() as p:
         wire(page, state)
         page.goto(base, wait_until="networkidle")
 
-        # Onboarding: bad input is explained, the sample works end to end.
-        assert page.locator("#onboarding").is_visible()
+        # Intro: three screens on first visit. Next walks through them, Skip goes straight to GitHub.
+        assert page.locator("#intro").is_visible() and page.locator("#onboarding").is_hidden()
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"intro overflow {width}"
+        page.screenshot(path=str(shots / f"intro-{width}.png"))
+        if width == 1440:
+            page.locator("#introNext").click()
+            page.locator("#introNext").click()
+            assert page.locator("#introNext").inner_text() == "Connect GitHub"
+            page.locator("#introNext").click()
+        else:
+            page.locator("#skipIntro").click()
+
+        # Onboarding: bad input is explained, the sample works end to end, in two steps.
+        assert page.locator("#onboarding").is_visible() and page.locator("#intro").is_hidden()
         page.locator("#repoInput").fill("not a repo")
         page.locator("#repoNext").click()
         assert "owner/name" in page.locator("#repoError").inner_text()
@@ -87,24 +99,28 @@ with sync_playwright() as p:
         page.locator("#figmaNext").click()
         assert "Figma file link" in page.locator("#figmaError").inner_text()
         page.locator("#figmaInput").fill("https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha")
-        page.locator("#figmaNext").click()
-        options = page.locator(".commit-option")
-        assert options.count() == 2
-        assert options.nth(1).get_attribute("aria-checked") == "true", "older commit is the default baseline"
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"onboarding overflow {width}"
-        page.screenshot(path=str(shots / f"onboarding-{width}.png"))
-        page.locator("#finishSetup").click()
+        page.locator("#figmaNext").click()
 
-        # Changes: one token differs, with before/after specimens and commit list.
+        # Overview: a banner says what happened, one token to review, starting from the commit before the latest.
         page.locator(".change").first.wait_for()
+        assert "1 token changed" in page.locator(".banner").inner_text()
         assert page.locator(".change").count() == 1
         assert "radius/button" in page.locator(".change").inner_text()
         assert page.title() == "(1) Venn"
-        radii = page.locator(".specimen").evaluate_all("els => els.map(e => getComputedStyle(e).borderTopLeftRadius)")
-        assert radii == ["2px", "12px"], radii
         assert page.locator(".commit-row").count() == 1
+        assert page.locator("#page-changes .specimen").count() == 0, "detail lives on the Tokens page"
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"changes overflow {width}"
         page.screenshot(path=str(shots / f"changes-{width}.png"), full_page=True)
+
+        # Tokens page: change map and component preview built from the tokens.
+        nav(page, "tokens", narrow)
+        page.locator(".map .cell").first.wait_for()
+        radii = page.locator("#page-tokens .specimen").evaluate_all("els => els.map(e => getComputedStyle(e).borderTopLeftRadius)")
+        assert radii == ["2px", "12px"], radii
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"tokens overflow {width}"
+        page.screenshot(path=str(shots / f"tokens-{width}.png"), full_page=True)
+        nav(page, "changes", narrow)
 
         # Apply modal opens and closes with Escape.
         page.locator("#applyButton").click()
@@ -119,7 +135,7 @@ with sync_playwright() as p:
         page.wait_for_function("document.querySelectorAll('.change').length === 2")
         assert page.locator(".commit-row").count() == 2
 
-        # History: a mismatched receipt is rejected, a valid one syncs Figma to that commit.
+        # History: file import still works for edge cases; the plugin's link is the normal path.
         nav(page, "history", narrow)
         assert "Nothing applied yet" in page.locator("#historyList").inner_text()
         receipt = {"schema": "venn/receipt-v2", "sourceRepo": REPO, "sourcePath": PATH, "sourceSha": NEW_SHA,
@@ -129,12 +145,17 @@ with sync_playwright() as p:
         upload = lambda body: page.locator("#receiptFile").set_input_files(
             {"name": "r.json", "mimeType": "application/json", "buffer": json.dumps(body).encode()})
         upload({**receipt, "remainingDifferences": 1})
-        page.wait_for_function("document.querySelector('#toast').innerText.includes('sync point did not move')")
+        page.wait_for_function("document.querySelector('#toast').innerText.includes('left for later')")
         assert page.locator("#navCount").inner_text() == "2"
         upload({**receipt, "sourceRepo": "someone/else"})
         page.wait_for_function("document.querySelector('#toast').innerText.includes('different repository')")
-        upload(receipt)
-        page.wait_for_function("document.querySelector('#historyList').innerText.includes('Test designer')")
+        # "Record in Venn": the plugin opens the site with the receipt in the link.
+        encoded = base64.urlsafe_b64encode(json.dumps(receipt).encode()).decode().rstrip("=")
+        page.goto(base + "#receipt=" + encoded, wait_until="networkidle")
+        page.wait_for_function("document.querySelector('#toast').innerText.includes('Update recorded')")
+        assert "#receipt=" not in page.url
+        nav(page, "history", narrow)
+        assert "Test designer" in page.locator("#historyList").inner_text()
         nav(page, "changes", narrow)
         assert "Figma matches your code" in page.locator("#changesBody").inner_text()
         assert page.title() == "Venn"
@@ -146,7 +167,7 @@ with sync_playwright() as p:
         assert page.locator("#app").is_visible() and page.locator("#onboarding").is_hidden()
 
         assert not errors, errors
-        print("PASS", width, "onboarding, detection, new push, receipts, sync, connections, reload, no overflow")
+        print("PASS", width, "intro, onboarding, overview, tokens, new push, record link, receipts, connections, reload, no overflow")
         page.close()
     browser.close()
 server.shutdown()

@@ -8,7 +8,7 @@
   ],
   "networkAccess": {
     "allowedDomains": [
-      "https://design-drift-tarun.vercel.app"
+      "https://venn-peach-eight.vercel.app"
     ],
     "reasoning": "Read the Venn published Penny design token snapshot."
   }

@@ -1,7 +1,7 @@
 // Venn — isolated Penny demonstration.
 // Never changes the file without explicit review and confirmation in the plugin.
 figma.showUI(__html__, {width: 440, height: 520, themeColors: true});
-const SOURCE = 'https://design-drift-tarun.vercel.app/source.json';
+const SOURCE = 'https://venn-peach-eight.vercel.app/source.json';
 const FILE_KEY = 'nfPIHqVPJv4OJ5yOavc1ha';
 const COLLECTION = 'Penny / Test tokens';
 const TOKEN_NAME = 'radius/button';

@@ -43,7 +43,7 @@ function toast(message) {
 function formatValue(type, value) {
   if (value === null) return '—';
   return type === 'color'
-    ? `<span class="swatch" style="background:${esc(value)}"></span>${esc(value)}`
+    ? `<span class="chip" style="background:${esc(value)}"></span>${esc(value)}`
     : esc(value);
 }
 
@@ -153,94 +153,154 @@ function render() {
 
   const watch = $('watch');
   watch.className = 'watch ' + (live.error ? 'error' : live.checkedAt ? 'live' : '');
-  $('watchText').textContent = live.error ? 'Not connected' : live.checkedAt ? 'Watching for pushes' : 'Connecting…';
+  $('watchText').textContent = live.error ? 'Not connected' : live.checkedAt ? `Watching · checked ${ago(new Date(live.checkedAt).toISOString())}` : 'Connecting';
 
   renderChanges(changes, commits);
+  renderSync(changes, commits);
   renderHistory();
   renderConnections();
   const canNotify = 'Notification' in window && Notification.permission === 'default';
   $('notifyButton').classList.toggle('hidden', !canNotify);
 }
 
-function specimenFor(changes) {
+const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="#i-${name}" /></svg>`;
+
+/* The moment: Figma's value (dashed grey) drawn over code's value (cobalt). */
+function vennFor(c) {
+  const label = c.kind === 'added' ? 'New in code' : c.kind === 'removed' ? 'Removed from code' : 'Figma and code';
+  if (c.type === 'color') {
+    const a = c.before ? `<circle class="swatch-figma" cx="26" cy="24" r="16" fill="${esc(c.before)}" />` : `<circle class="figma-stroke" cx="26" cy="24" r="16" />`;
+    const b = c.after ? `<circle class="swatch-code" cx="46" cy="24" r="16" fill="${esc(c.after)}" />` : `<circle class="figma-stroke" cx="46" cy="24" r="16" />`;
+    return `<svg class="venn" viewBox="0 0 72 48" role="img" aria-label="${esc(label)}">${a}${b}</svg>`;
+  }
+  const before = c.before ?? 0;
+  const after = c.after ?? 0;
+  if (/radius/.test(c.name)) {
+    // Two corners laid over each other, like a redline of the same component.
+    const r = (v) => Math.max(0, Math.min(22, v));
+    const shape = (v, cls) => `<rect class="${cls}" x="8" y="6" width="56" height="36" rx="${r(v)}" />`;
+    return `<svg class="venn" viewBox="0 0 72 48" role="img" aria-label="Corner radius ${esc(before)} to ${esc(after)}">${shape(after, 'code-stroke')}${shape(before, 'figma-stroke')}</svg>`;
+  }
+  // Lengths: two measured bars on one baseline.
+  const max = Math.max(before, after, 1);
+  const w = (v) => Math.max(2, Math.round((v / max) * 60));
+  return `<svg class="venn" viewBox="0 0 72 48" role="img" aria-label="${esc(before)} to ${esc(after)}">
+    <line class="tick" x1="6" y1="10" x2="6" y2="38" />
+    <rect class="figma-stroke" x="6" y="14" width="${w(before)}" height="8" rx="2" />
+    <rect class="code-stroke" x="6" y="26" width="${w(after)}" height="8" rx="2" />
+  </svg>`;
+}
+
+function previewFor(changes) {
   const relevant = changes.some((c) => /^(radius|action|text)\//.test(c.name));
   if (!relevant || !live.head || !live.synced) return '';
   const style = (t) => {
     const radius = t['radius/button']?.value ?? 8;
-    const bg = t['action/primary']?.value ?? '#0A7A4B';
+    const bg = t['action/primary']?.value ?? '#171717';
     const fg = t['text/on-brand']?.value ?? '#FFFFFF';
     return `border-radius:${radius}px;background:${esc(bg)};color:${esc(fg)}`;
   };
-  return `<div class="specimens" aria-label="Before and after preview">
-    <div class="specimen-cell"><label>At last sync · ${esc(short(workspace.syncedSha))}</label><button class="specimen" tabindex="-1" style="${style(live.synced)}">Continue</button></div>
-    <div class="specimen-cell"><label>In code · ${esc(short(live.commits[0].sha))}</label><button class="specimen" tabindex="-1" style="${style(live.head)}">Continue</button></div>
+  return `<div class="preview" aria-label="Primary button built from your tokens">
+    <div class="preview-cell"><label>Figma · last sync ${esc(short(workspace.syncedSha))}</label><button class="specimen" tabindex="-1" style="${style(live.synced)}">Continue</button></div>
+    <div class="preview-cell"><label>Code · ${esc(short(live.commits[0].sha))}</label><button class="specimen" tabindex="-1" style="${style(live.head)}">Continue</button></div>
   </div>`;
 }
 
 function renderChanges(changes, commits) {
   const body = $('changesBody');
   const sub = $('changesSub');
-  if (live.loading) { sub.textContent = 'Checking GitHub…'; body.innerHTML = ''; return; }
+  if (live.loading) { sub.textContent = 'Checking GitHub'; body.innerHTML = ''; return; }
   if (live.error) {
-    sub.textContent = 'Could not check GitHub.';
+    sub.textContent = 'Could not check GitHub';
     body.innerHTML = `<div class="notice" role="alert">${esc(live.error)}</div>`;
     return;
   }
   const head = live.commits[0];
-  sub.textContent = live.checkedAt ? `Last checked ${ago(new Date(live.checkedAt).toISOString())}.` : '';
+  sub.textContent = `${workspace.repo} · ${workspace.path}`;
   if (!changes.length) {
-    body.innerHTML = `<div class="panel empty">
-      <div class="empty-mark" aria-hidden="true">✓</div>
+    body.innerHTML = `<div class="card empty">
+      <svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg>
       <h2>Figma matches your code</h2>
-      <p>No token differences since the commit your Figma file was last synced to.</p>
+      <p>No token has changed since the commit Figma was last synced to</p>
       <span class="sha">${esc(short(workspace.syncedSha))}</span>
     </div>`;
     return;
   }
+  const kind = (c) => (c.kind === 'changed' ? 'Changed' : c.kind === 'added' ? 'New in code' : 'Removed from code');
   const rows = changes.map((c) => `<div class="change">
-      <div class="change-name">${esc(c.name)}<small>${c.kind === 'changed' ? 'Changed' : c.kind === 'added' ? 'New in code' : 'Removed from code'} · ${esc(c.type)}</small></div>
-      <div class="values"><span class="old">${formatValue(c.type, c.before)}</span><span class="arrow">→</span><span>${formatValue(c.type, c.after)}</span></div>
+      ${vennFor(c)}
+      <div class="change-name">${esc(c.name)}<small>${kind(c)}</small></div>
+      <div class="values"><span class="from">${formatValue(c.type, c.before)}</span><span class="arrow">→</span><span class="to">${formatValue(c.type, c.after)}</span></div>
     </div>`).join('');
   const commitRows = commits.map((c) => `<div class="commit-row">
       <div><strong>${esc(c.message)}</strong><small>${esc(c.author)} · ${c.date ? esc(ago(c.date)) : ''}</small></div>
       <a class="sha" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(short(c.sha))}</a>
     </div>`).join('');
-  body.innerHTML = `<div class="panel">
-      <div class="panel-top">
-        <div><h2>${changes.length === 1 ? '1 token changed' : changes.length + ' tokens changed'} since Figma was last synced</h2><p>Latest commit ${esc(short(head.sha))} · ${esc(head.message)}</p></div>
-        <span class="tag">Needs review</span>
+  body.innerHTML = `<div class="card">
+      <div class="card-head">
+        <div><h2>${changes.length === 1 ? '1 token drifted' : changes.length + ' tokens drifted'} from Figma</h2><p>Up to ${esc(short(head.sha))} · ${esc(head.message)}</p></div>
+        <span class="status">Needs review</span>
       </div>
+      <div class="legend"><span><i class="f"></i>Figma</span><span><i class="c"></i>Code</span></div>
       ${rows}
-      ${specimenFor(changes)}
-      <div class="panel-actions"><span>Figma changes only after you review it in the plugin.</span><button class="button solid" id="applyButton" type="button">Apply with plugin</button></div>
+      ${previewFor(changes)}
+      <div class="card-foot"><p>Figma changes only after you review each value in the plugin</p><button class="button primary" id="applyButton" type="button">${icon('figma')}Apply with plugin</button></div>
     </div>
-    <div class="section-label">Commits since last sync</div>
-    <div class="panel">${commitRows}</div>`;
+    <h2 class="section-label">Commits since last sync</h2>
+    <div class="card">${commitRows}</div>`;
   $('applyButton').addEventListener('click', () => openModal());
+}
+
+/* Signature: two circles that overlap when Figma and code agree, and pull apart as they drift. */
+function renderSync(changes, commits) {
+  const card = $('syncCard');
+  if (live.loading || live.error) { card.innerHTML = ''; card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  card.classList.add('card');
+  const drift = Math.min(changes.length, 4);
+  const offset = drift ? 10 + drift * 5 : 4;
+  const head = live.commits[0];
+  const figma = workspace.figmaUrl
+    ? `<a href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">Open file</a>`
+    : '<span class="sha">Not linked</span>';
+  card.innerHTML = `
+    <div class="sync-mark" aria-hidden="true"><svg viewBox="0 0 128 72">
+      <circle class="c-figma" cx="64" cy="36" r="28" style="transform:translateX(-${offset}px)" />
+      <circle class="c-code" cx="64" cy="36" r="28" style="transform:translateX(${offset}px)" />
+    </svg></div>
+    <div class="sync-title">
+      <h2>${changes.length ? 'Drifting' : 'In sync'}</h2>
+      <p>${changes.length ? `${commits.length} ${commits.length === 1 ? 'commit' : 'commits'} ahead of Figma` : 'Figma matches the latest commit'}</p>
+    </div>
+    <dl class="facts">
+      <div><dt>Figma last synced to</dt><dd><span class="sha">${esc(short(workspace.syncedSha))}</span></dd></div>
+      <div><dt>Latest commit</dt><dd><a class="sha" href="${esc(head.url)}" target="_blank" rel="noopener noreferrer">${esc(short(head.sha))}</a> ${esc(head.message)}</dd></div>
+      <div><dt>Figma file</dt><dd>${figma}</dd></div>
+    </dl>`;
 }
 
 function renderHistory() {
   const root = $('historyList');
   if (!receipts.length) {
-    root.innerHTML = `<div class="panel empty"><h2>Nothing applied yet</h2><p>After you apply changes in Figma, import the plugin's receipt here. History is stored in this browser.</p></div>`;
+    root.innerHTML = `<div class="card empty"><svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg><h2>Nothing applied yet</h2><p>After you apply changes in Figma, import the plugin's receipt here</p></div>`;
     return;
   }
-  root.innerHTML = `<div class="panel">${receipts.map((r) => `<div class="history-item">
-      <header><strong>${r.changes.length} ${r.changes.length === 1 ? 'variable' : 'variables'} updated in Figma</strong><small>${esc(new Date(r.appliedAt).toLocaleString())}</small></header>
-      <div>${r.changes.map((c) => `<div class="values"><span>${esc(c.name)}</span><span class="old">${formatValue(c.type, c.before)}</span><span class="arrow">→</span><span>${formatValue(c.type, c.readBack)}</span></div>`).join('')}</div>
-      <small>${esc(r.actor || 'Figma plugin')} · commit ${esc(short(r.sourceSha))} · read back by the plugin, not independently verified</small>
+  root.innerHTML = `<div class="card">${receipts.map((r) => `<div class="history-item">
+      <header><strong>${r.changes.length} ${r.changes.length === 1 ? 'variable' : 'variables'} updated in Figma</strong><small>${esc(new Date(r.appliedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}</small></header>
+      <div>${r.changes.map((c) => `<div class="values"><span class="name">${esc(c.name)}</span><span class="from">${formatValue(c.type, c.before)}</span><span class="arrow">→</span><span class="to">${formatValue(c.type, c.readBack)}</span></div>`).join('')}</div>
+      <small>${esc(r.actor || 'Figma plugin')} · commit ${esc(short(r.sourceSha))} · values read back by the plugin</small>
     </div>`).join('')}</div>`;
 }
 
 function renderConnections() {
   const figma = workspace.figmaUrl
-    ? `<a href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">${esc(workspace.figmaUrl)}</a>`
-    : 'No file linked. Add one by disconnecting and starting over.';
+    ? `<a href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">${esc(workspace.figmaUrl.replace(/^https:\/\/(www\.)?/, ''))}</a>`
+    : 'No file linked';
   $('connectionRows').innerHTML = `
-    <div class="row"><div><strong>GitHub</strong><p><a href="https://github.com/${esc(workspace.repo)}" target="_blank" rel="noopener noreferrer">${esc(workspace.repo)}</a> · ${esc(workspace.path)}</p></div><span class="tag ok">${live.error ? 'Problem' : 'Connected'}</span></div>
-    <div class="row"><div><strong>Figma file</strong><p>${figma}</p></div></div>
-    <div class="row"><div><strong>Last synced commit</strong><p>${esc(short(workspace.syncedSha))}</p></div></div>
-    <div class="row"><div><strong>Figma plugin</strong><p>Reads this repository and updates the open file after you review it.</p></div><a class="button quiet" href="figma-plugin.zip" download>Download</a></div>`;
+    <div class="row">${icon('github')}<div><strong>GitHub</strong><p><a href="https://github.com/${esc(workspace.repo)}" target="_blank" rel="noopener noreferrer">${esc(workspace.repo)}</a> · <span class="mono">${esc(workspace.path)}</span></p></div><span class="status ${live.error ? '' : 'ok'}">${live.error ? 'Problem' : 'Connected'}</span></div>
+    <div class="row">${icon('figma')}<div><strong>Figma file</strong><p>${figma}</p></div></div>
+    <div class="row">${icon('history')}<div><strong>Last synced commit</strong><p><span class="sha">${esc(short(workspace.syncedSha))}</span></p></div></div>
+    <div class="row">${icon('plug')}<div><strong>Figma plugin</strong><p>Reads this repository and updates the open file after you review it</p></div><a class="button" href="figma-plugin.zip" download>${icon('download')}Download</a></div>`;
   $('openFigma').href = workspace.figmaUrl || 'https://www.figma.com';
 }
 
@@ -285,7 +345,7 @@ async function importReceipt(file) {
   save(KEYS.workspace, workspace);
   live.synced = await fetchTokens(workspace.repo, workspace.syncedSha, workspace.path).catch(() => null);
   render();
-  toast('Receipt added. Figma is now synced to ' + short(receipt.sourceSha) + '.');
+  toast('Receipt added. Figma is now synced to ' + short(receipt.sourceSha));
 }
 
 /* ---------- onboarding ---------- */
@@ -381,7 +441,7 @@ $('checkNow').addEventListener('click', async () => {
   const btn = $('checkNow'); btn.disabled = true;
   await refresh({ manual: true });
   btn.disabled = false;
-  if (!live.error) toast('Up to date with GitHub.');
+  if (!live.error) toast('Up to date with GitHub');
 });
 $('notifyButton').addEventListener('click', async () => {
   try { await Notification.requestPermission(); } catch { /* ignore */ }

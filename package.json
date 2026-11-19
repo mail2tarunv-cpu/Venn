@@ -1,0 +1,9 @@
+{
+  "name": "venn",
+  "private": true,
+  "scripts": {
+    "test:plugin": "node tests/plugin.test.cjs",
+    "test:browser": "python3 tests/test_browser.py",
+    "test": "npm run test:plugin && npm run test:browser"
+  }
+}

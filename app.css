@@ -225,7 +225,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .map-col.ahead { background: var(--accent-wash); }
 .map-col.synced::after { content: ""; position: absolute; right: -1px; top: 24px; bottom: 34px; border-right: 1.5px dashed var(--ink-3); }
 .sync-flag { position: absolute; top: 2px; right: -1px; transform: translateX(50%); font-size: 11px; height: 20px; line-height: 20px; padding: 0 8px; border-radius: 6px; background: var(--ink); color: #fff; white-space: nowrap; z-index: 1; }
-.cell { height: 28px; --dot: var(--dot-off); background-image: radial-gradient(circle at center, var(--dot) 3.2px, transparent 3.8px); background-size: 11px 11px; background-position: center; }
+.cell { height: 28px; --dot: var(--dot-off); background-image: radial-gradient(circle at center, var(--dot) 3.2px, transparent 3.8px); background-size: 11px 11px; background-position: center; background-repeat: space; }
 .cell.on.color { --dot: var(--amber); }
 .cell.on.number { --dot: var(--accent); }
 .map-col.ahead .cell:not(.on) { --dot: #d4d4d8; }
@@ -393,7 +393,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 @keyframes slide-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
 
 /* ---------- overview banner ---------- */
-.banner { display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; gap: 28px; align-items: center; padding: 24px 28px; margin-bottom: 16px; }
+.banner { display: grid; grid-template-columns: 240px minmax(0, 1fr) auto; gap: 28px; align-items: center; padding: 24px 28px; margin-bottom: 16px; }
 .banner.drift { background: linear-gradient(180deg, #fffdf7, #fff 60%); }
 .banner.sync { background: linear-gradient(180deg, #f8fdf9, #fff 60%); }
 .sync-mark { width: 220px; height: 104px; overflow: visible; }
@@ -428,3 +428,36 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 @media (prefers-reduced-motion: reduce) {
   .visual-mark .vc-figma { transform: translateX(-24px); } .visual-mark .vc-code { transform: translateX(24px); }
 }
+
+/* ---------- Venn mark ---------- */
+.venn-mark { width: 240px; height: 120px; overflow: visible; display: block; }
+.venn-mark .vm-left { transform: translateX(calc(var(--d) * -1)); }
+.venn-mark .vm-right { transform: translateX(var(--d)); }
+.venn-mark .vm-hatch { stroke: rgba(113, 113, 122, 0.35); stroke-width: 1.2; }
+.venn-mark .vm-figma { fill: none; stroke: #a1a1aa; stroke-width: 1.5; stroke-dasharray: 4 3.5; }
+.venn-mark .vm-code { fill: rgba(31, 95, 208, 0.10); }
+.venn-mark .vm-code-edge { fill: none; stroke: var(--accent); stroke-width: 1.75; }
+.venn-mark .vm-lens { fill: #f59e0b; }
+.venn-mark.sync .vm-lens { fill: #16a34a; }
+.venn-mark .vm-count { font: 600 18px var(--sans); fill: #fff; letter-spacing: -0.02em; }
+.venn-mark .vm-check { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.venn-mark .vm-label { font: 500 12px var(--sans); fill: var(--ink-3); }
+.venn-mark .vm-label.code { fill: var(--accent-ink); }
+.venn-mark .vm-count, .venn-mark .vm-check { animation: fade 400ms 240ms var(--ease) both; }
+.venn-mark:not(.animate) .vm-left { animation: vm-in-left 800ms var(--ease) both; }
+.venn-mark:not(.animate) .vm-right { animation: vm-in-right 800ms var(--ease) both; }
+@keyframes vm-in-left { from { transform: translateX(calc(var(--d) * -1 - 24px)); } }
+@keyframes vm-in-right { from { transform: translateX(calc(var(--d) + 24px)); } }
+.venn-mark.animate .vm-left { animation: vm-left 3.6s var(--ease) infinite alternate; }
+.venn-mark.animate .vm-right { animation: vm-right 3.6s var(--ease) infinite alternate; }
+.venn-mark.animate .vm-count { animation: none; }
+@keyframes vm-left { 0%, 15% { transform: translateX(-40px); } 85%, 100% { transform: translateX(-8px); } }
+@keyframes vm-right { 0%, 15% { transform: translateX(40px); } 85%, 100% { transform: translateX(8px); } }
+.banner .venn-mark { width: 220px; height: 110px; }
+.map-col.last .sync-flag { right: 0; transform: none; }
+@media (prefers-reduced-motion: reduce) { .venn-mark .vm-left, .venn-mark .vm-right { animation: none !important; } }
+
+.mode-tag { display: inline-block; margin-left: 8px; padding: 0 6px; height: 18px; line-height: 16px; border-radius: 5px; border: 1px solid var(--line-2); color: var(--ink-2); font: 500 11px var(--sans); vertical-align: 1px; }
+.cell-val { display: inline-flex; align-items: center; }
+.alias { font-family: var(--mono); }
+.map-name .mode-tag { margin-left: 6px; height: 16px; line-height: 14px; font-size: 10px; }

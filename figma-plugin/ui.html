@@ -71,8 +71,12 @@
   .row.muted:hover { background: none; }
   .row input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
   .name { min-width: 0; }
-  .name .mono { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12px; }
-  .name small { color: var(--ink-3); font-size: 11px; }
+  .name .mono { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12px; }
+  .name small { display: block; color: var(--ink-3); font-size: 11px; }
+  .name .mode { display: inline-block; margin-left: 6px; padding: 0 5px; height: 16px; line-height: 14px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--ink-2); font-size: 10px; font-weight: 500; vertical-align: 1px; }
+  .alias { font-family: var(--mono); color: inherit; }
+  .pill.new { background: var(--accent-wash); color: var(--accent-ink); }
+  .none { color: var(--ink-3); }
   .vals { display: flex; align-items: center; gap: 6px; font: 11.5px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .vals > span { display: inline-flex; align-items: center; line-height: 16px; }
   .vals .chip { vertical-align: 0; margin-top: 0; }
@@ -156,18 +160,34 @@ const post = (msg) => parent.postMessage({ pluginMessage: msg }, '*');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let rows = [], receipt = null, site = '';
 
-const fmt = (type, v) => v === undefined || v === null ? '—' : type === 'color' ? `<span class="chip" style="background:${esc(v)}"></span>${esc(v)}` : esc(v);
-const LABEL = { match: 'Matches code', missing: 'Not in Figma, not created', type: 'Different type in Figma', alias: 'Alias in Figma, left alone', unsupported: 'Unsupported value in Figma' };
+const chip = (type, v) => (type === 'color' && v ? `<span class="chip" style="background:${esc(v)}"></span>` : '');
+// A value as Figma or code holds it: a raw value, or an alias shown by name with its resolved swatch.
+const fmt = (type, v, alias) => {
+  if (alias) return `${chip(type, v)}<span class="alias">{${esc(alias.split('/').slice(-2).join('/'))}}</span>`;
+  if (v === undefined || v === null) return '<span class="none">—</span>';
+  return `${chip(type, v)}${esc(v)}`;
+};
+const NOTE = {
+  differs: (r) => (r.figmaAlias && !r.codeAlias ? 'Alias in Figma, plain value in code' : !r.figmaAlias && r.codeAlias ? 'Hard-coded in Figma, alias in code' : r.figmaAlias ? 'Points at a different variable' : 'Value differs from code'),
+  missing: () => 'Not in Figma yet, will be created',
+  match: () => 'Matches code',
+  extra: () => 'In Figma only, left as is',
+  nomode: (r) => `No ${r.mode} mode in this collection`,
+  type: () => 'Different type in Figma, skipped',
+  unsupported: () => 'Unsupported value in Figma, skipped',
+};
+const fixable = (r) => (r.status === 'differs' || r.status === 'missing') && !r.follows;
 
 // Figma's value (dashed) over code's value (cobalt), same drawing as the website.
 function venn(r) {
   if (r.type === 'color') {
     const a = r.figma ? `<circle class="sw" cx="11" cy="12" r="9" fill="${esc(r.figma)}"/>` : `<circle class="f" cx="11" cy="12" r="9"/>`;
-    return `<svg class="venn" viewBox="0 0 32 24" aria-hidden="true">${a}<circle class="sw swc" cx="21" cy="12" r="9" fill="${esc(r.code)}"/></svg>`;
+    const b = r.code ? `<circle class="sw swc" cx="21" cy="12" r="9" fill="${esc(r.code)}"/>` : `<circle class="f" cx="21" cy="12" r="9"/>`;
+    return `<svg class="venn" viewBox="0 0 32 24" aria-hidden="true">${a}${b}</svg>`;
   }
-  const before = typeof r.figma === 'number' ? r.figma : 0, after = r.code;
+  const before = typeof r.figma === 'number' ? r.figma : 0, after = typeof r.code === 'number' ? r.code : 0;
   if (/radius/.test(r.name)) {
-    const k = (v) => Math.max(0, Math.min(9, v));
+    const k = (v) => Math.max(0, Math.min(8, v));
     return `<svg class="venn" viewBox="0 0 32 24" aria-hidden="true"><rect class="c" x="3" y="4" width="26" height="16" rx="${k(after)}"/><rect class="f" x="3" y="4" width="26" height="16" rx="${k(before)}"/></svg>`;
   }
   const max = Math.max(before, after, 1), w = (v) => Math.max(2, Math.round((v / max) * 26));
@@ -186,31 +206,31 @@ function syncButtons() {
   $('apply').textContent = n ? `Apply ${n} ${n === 1 ? 'change' : 'changes'} in Figma` : 'Apply in Figma';
 }
 function render(data) {
-  rows = data.rows;
-  const differs = rows.filter((r) => r.status === 'differs');
+  rows = data.rows.filter((r) => !r.follows);
+  const todo = rows.filter(fixable);
   const matches = rows.filter((r) => r.status === 'match');
-  const others = rows.length - differs.length - matches.length;
-  $('nDiffer').textContent = differs.length;
-  $('nDiffer').parentElement.classList.toggle('warn', differs.length > 0);
-  $('summaryText').textContent = differs.length
-    ? `${differs.length === 1 ? 'value differs' : 'values differ'} from code · ${matches.length} already match`
-    : `Figma matches code · ${matches.length} ${matches.length === 1 ? 'variable' : 'variables'} checked`;
+  const quiet = rows.filter((r) => !fixable(r) && r.status !== 'match');
+  $('nDiffer').textContent = todo.length;
+  $('nDiffer').parentElement.classList.toggle('warn', todo.length > 0);
+  const created = todo.filter((r) => r.status === 'missing').length;
+  $('summaryText').textContent = todo.length
+    ? `to fix${created ? `, ${created} to create` : ''} · ${matches.length} already match`
+    : `Figma matches code · ${matches.length} values checked`;
   $('sha').textContent = data.sha.slice(0, 7);
   $('sub').textContent = data.message;
-  $('sourceLabel').textContent = `${data.collection}`;
+  $('sourceLabel').textContent = data.collection + (data.modes && data.modes.length > 1 ? ` · ${data.modes.join(', ')}` : '');
   $('sourceButton').classList.remove('error');
-  $('summary').textContent = differs.length ? 'Differences with code' : 'All variables';
-  $('tagWrap').innerHTML = differs.length
+  $('summary').textContent = todo.length ? 'To fix' : 'All values';
+  $('tagWrap').innerHTML = todo.length
     ? `<button class="select-all" id="selectAll" type="button">Select all</button>`
     : `<span class="pill good">Up to date</span>`;
-  const order = { differs: 0, missing: 1, type: 1, alias: 1, unsupported: 1, match: 2 };
-  const sorted = rows.slice().sort((a, b) => order[a.status] - order[b.status]);
-  const rowHtml = (r) => r.status === 'differs'
-    ? `<label class="row"><input type="checkbox" class="pick" value="${esc(r.name)}">${venn(r)}<span class="name"><span class="mono">${esc(r.name)}</span><small>Figma differs from code</small></span><span class="vals"><span class="from">${fmt(r.type, r.figma)}</span><span class="arrow">→</span><span class="to">${fmt(r.type, r.code)}</span></span></label>`
-    : `<div class="row muted"><span></span><span></span><span class="name"><span class="mono">${esc(r.name)}</span><small>${esc(LABEL[r.status])}</small></span><span class="vals">${r.status === 'match' ? fmt(r.type, r.figma) : `<span class="pill neutral">${r.status === 'missing' ? 'Missing' : 'Skipped'}</span>`}</span></div>`;
-  // Differences and anything needing attention are shown; matching variables fold away.
-  const shown = sorted.filter((r) => r.status !== 'match');
-  const folded = sorted.filter((r) => r.status === 'match');
+  const label = (r) => `<span class="name"><span class="mono">${esc(r.name)}</span>${r.mode ? `<span class="mode">${esc(r.mode)}</span>` : ''}<small>${esc(NOTE[r.status](r))}</small></span>`;
+  const rowHtml = (r) => fixable(r)
+    ? `<label class="row"><input type="checkbox" class="pick" value="${esc(r.key)}">${venn(r)}${label(r)}<span class="vals">${r.status === 'missing' ? '<span class="pill new">New</span>' : `<span class="from">${fmt(r.type, r.figma, r.figmaAlias)}</span><span class="arrow">→</span>`}<span class="to">${fmt(r.type, r.code, r.codeAlias)}</span></span></label>`
+    : `<div class="row muted"><span></span><span></span>${label(r)}<span class="vals">${r.status === 'match' ? fmt(r.type, r.figma, r.figmaAlias) : `<span class="pill neutral">${r.status === 'extra' ? 'Figma only' : 'Skipped'}</span>`}</span></div>`;
+  const byName = (a, b) => (a.name + (a.mode || '')).localeCompare(b.name + (b.mode || ''));
+  const shown = todo.slice().sort((a, b) => (a.status === 'missing') - (b.status === 'missing') || byName(a, b)).concat(quiet.sort(byName));
+  const folded = matches.sort(byName);
   $('rows').innerHTML = shown.length ? shown.map(rowHtml).join('') : (folded.length ? '' : `<div class="empty-row">No colour or number tokens found in this file</div>`);
   $('moreRows').innerHTML = folded.map(rowHtml).join('');
   const toggle = $('moreToggle');

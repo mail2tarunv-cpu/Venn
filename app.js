@@ -193,10 +193,15 @@ function vennFor(c) {
   </svg>`;
 }
 
-function formatCell(type, value) {
+function formatCell(type, value, alias) {
+  if (typeof value === 'string' && /^\{.+\}$/.test(value)) { alias = value.slice(1, -1); value = null; }
+  const swatch = type === 'color' && value ? `<span class="chip" style="background:${esc(value)}"></span>` : '';
+  if (alias) return `<span class="cell-val">${swatch}<span class="alias">{${esc(alias)}}</span></span>`;
   if (value === null || value === undefined) return '<span class="none">—</span>';
-  return type === 'color' ? `<span class="chip" style="background:${esc(value)}"></span>${esc(value)}` : esc(value);
+  return `<span class="cell-val">${swatch}${esc(value)}</span>`;
 }
+const modeTag = (mode) => (mode ? `<span class="mode-tag">${esc(mode)}</span>` : '');
+const entryLabel = (key) => { const [name, mode] = key.split('@'); return `${esc(name)}${modeTag(mode)}`; };
 
 /* Hero: every token across recent commits, as a dot matrix, with the Figma sync point marked. */
 function renderMap() {
@@ -215,7 +220,7 @@ function renderMap() {
       return `<div class="cell ${changed ? 'on ' + type : ''}" title="${esc(tip)}"></div>`;
     }).join('');
     const label = x.commit.date ? new Date(x.commit.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
-    return `<div class="map-col ${after ? 'ahead' : ''} ${i === syncIdx ? 'synced' : ''}">
+    return `<div class="map-col ${after ? 'ahead' : ''} ${i === syncIdx ? 'synced' : ''} ${i === t.length - 1 ? 'last' : ''}">
       ${i === syncIdx ? `<span class="sync-flag">Figma synced</span>` : ''}
       ${cells}
       <div class="map-x"><span class="mono">${esc(short(x.commit.sha))}</span><small>${esc(label)}</small></div>
@@ -228,7 +233,7 @@ function renderMap() {
       <div class="legend"><span><i class="lg color"></i>Colour changed</span><span><i class="lg number"></i>Number changed</span><span><i class="lg off"></i>Unchanged</span></div>
     </div>
     <div class="map-scroll"><div class="map">
-      <div class="map-names">${names.map((n) => `<div class="map-name mono">${esc(n)}</div>`).join('')}<div class="map-x"></div></div>
+      <div class="map-names">${names.map((n) => `<div class="map-name mono">${entryLabel(n)}</div>`).join('')}<div class="map-x"></div></div>
       ${cols}
     </div></div>
   </div>`;
@@ -244,7 +249,7 @@ function renderInventory(changes) {
     <div class="inv-figure"><span class="big">${entries.length}</span><span class="pill ${changes.length ? 'warn' : 'good'}">${changes.length ? `${changes.length} drifted` : 'All in Figma'}</span></div>
     <div class="split-bar" aria-hidden="true"><span class="seg color" style="flex:${colors / total}"></span><span class="seg number" style="flex:${(total - colors) / total}"></span></div>
     <div class="split-legend"><span><i class="lg color"></i>Colours ${colors}</span><span><i class="lg number"></i>Numbers ${entries.length - colors}</span></div>
-    <ul class="inv-list">${entries.map(([n, t]) => `<li><span class="mono">${esc(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Drifted from Figma"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value)}</span></li>`).join('')}</ul>
+    <ul class="inv-list">${entries.map(([n, t]) => `<li><span class="mono">${entryLabel(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Drifted from Figma"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value, t.alias)}</span></li>`).join('')}</ul>
   </div>`;
 }
 
@@ -266,11 +271,30 @@ function previewCard() {
   </div>`;
 }
 
-function syncMark(drift) {
-  const offset = drift ? 16 + Math.min(drift, 4) * 4 : 6;
-  return `<svg class="sync-mark" viewBox="0 0 220 104" aria-hidden="true">
-    <g class="g-figma" style="transform:translateX(-${offset}px)"><circle class="c-figma" cx="110" cy="52" r="40" /><text x="62" y="56" class="vt" text-anchor="end">Figma</text></g>
-    <g class="g-code" style="transform:translateX(${offset}px)"><circle class="c-code" cx="110" cy="52" r="40" /><text x="158" y="56" class="vt code">Code</text></g>
+/* The Venn mark. Figma (hatched) and code (cobalt) as two discs; their overlap is drawn as a solid
+   lens that carries the state: amber with the number of drifted tokens, or green with a check.
+   The lens is the code disc clipped by the Figma disc, so it stays exact at any distance. */
+let vennId = 0;
+function vennMark({ drift = 0, animate = false } = {}) {
+  const id = 'vm' + (++vennId);
+  const r = 44, cx = 120, cy = 60;
+  const d = drift ? 18 + Math.min(drift, 5) * 3 : 8;      // half the distance between centres
+  const state = drift ? 'drift' : 'sync';
+  const label = animate ? '' : drift
+    ? `<text class="vm-count" x="${cx}" y="${cy + 6}" text-anchor="middle">${drift}</text>`
+    : `<path class="vm-check" d="M${cx - 9} ${cy} l6 6 l12 -13" />`;
+  return `<svg class="venn-mark ${state} ${animate ? 'animate' : ''}" viewBox="0 0 240 120" style="--d:${d}px" role="img" aria-label="${drift ? `${drift} drifted` : 'Figma and code in step'}">
+    <defs>
+      <pattern id="${id}h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" class="vm-hatch" /></pattern>
+      <clipPath id="${id}c"><circle class="vm-left" cx="${cx}" cy="${cy}" r="${r + 1}" /></clipPath>
+    </defs>
+    <g class="vm-left"><circle class="vm-figma-fill" cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}h)" /><circle class="vm-figma" cx="${cx}" cy="${cy}" r="${r}" /></g>
+    <g class="vm-right"><circle class="vm-code" cx="${cx}" cy="${cy}" r="${r}" /></g>
+    <g clip-path="url(#${id}c)"><circle class="vm-right vm-lens" cx="${cx}" cy="${cy}" r="${r + 1}" /></g>
+    <circle class="vm-right vm-code-edge" cx="${cx}" cy="${cy}" r="${r}" />
+    ${label}
+    <text class="vm-label vm-left" x="${cx - r - 12}" y="${cy + 4}" text-anchor="end">Figma</text>
+    <text class="vm-label code vm-right" x="${cx + r + 12}" y="${cy + 4}">Code</text>
   </svg>`;
 }
 
@@ -292,7 +316,7 @@ function renderDashboard(changes, commits) {
 
   const banner = changes.length
     ? `<div class="card banner drift">
-        ${syncMark(changes.length)}
+        ${vennMark({ drift: changes.length })}
         <div class="banner-copy">
           <span class="pill warn">Needs review</span>
           <h2>${changes.length === 1 ? '1 token changed' : changes.length + ' tokens changed'} in code since Figma was last updated</h2>
@@ -301,7 +325,7 @@ function renderDashboard(changes, commits) {
         <div class="banner-actions"><button class="button primary" id="applyButton" type="button">${icon('figma')}Apply in Figma</button></div>
       </div>`
     : `<div class="card banner sync">
-        ${syncMark(0)}
+        ${vennMark({ drift: 0 })}
         <div class="banner-copy">
           <span class="pill good">In step</span>
           <h2>Figma matches your code</h2>
@@ -317,9 +341,9 @@ function renderDashboard(changes, commits) {
         <div class="table-scroll"><table class="table">
           <thead><tr><th>Token</th><th>Figma</th><th>Code</th><th>Changed in</th></tr></thead>
           <tbody>${changes.map((c) => `<tr class="change">
-            <td><div class="token-cell">${vennFor(c)}<span><span class="mono">${esc(c.name)}</span><small>${kindLabel(c)}</small></span></div></td>
-            <td class="num from">${formatCell(c.type, c.before)}</td>
-            <td class="num to">${formatCell(c.type, c.after)}</td>
+            <td><div class="token-cell">${vennFor(c)}<span><span class="mono">${esc(c.token || c.name)}</span>${modeTag(c.mode)}<small>${kindLabel(c)}${c.beforeAlias !== c.afterAlias && c.before === c.after ? ' · same colour, new alias' : ''}</small></span></div></td>
+            <td class="num from">${formatCell(c.type, c.before, c.beforeAlias)}</td>
+            <td class="num to">${formatCell(c.type, c.after, c.afterAlias)}</td>
             <td>${lastTouch(c.name)}</td>
           </tr>`).join('')}</tbody>
         </table></div>
@@ -368,7 +392,7 @@ function renderHistory() {
     <thead><tr><th>Applied</th><th>Token</th><th>Before</th><th>Read back</th><th>Commit</th><th>By</th></tr></thead>
     <tbody>${receipts.flatMap((r) => r.changes.map((c, i) => `<tr class="history-item">
       <td class="muted">${i === 0 ? esc(new Date(r.appliedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })) : ''}</td>
-      <td><div class="token-cell">${vennFor({ ...c, after: c.readBack })}<span class="mono">${esc(c.name)}</span></div></td>
+      <td><div class="token-cell">${vennFor({ ...c, before: /^\{/.test(c.before) ? null : c.before, after: c.value ?? c.readBack })}<span><span class="mono">${esc(c.name)}</span>${modeTag(c.mode)}${c.kind === 'created' ? '<small>Created</small>' : ''}</span></div></td>
       <td class="num from">${formatCell(c.type, c.before)}</td>
       <td class="num to">${formatCell(c.type, c.readBack)}</td>
       <td><span class="mono">${esc(short(r.sourceSha))}</span></td>
@@ -463,6 +487,7 @@ async function receiptFromLink() {
 const INTRO_KEY = 'venn.intro.v1';
 let slide = 0;
 function showSlide(n) {
+  if (!$('introMark').innerHTML) $('introMark').innerHTML = vennMark({ drift: 2, animate: true });
   slide = Math.max(0, Math.min(2, n));
   document.querySelectorAll('.slide').forEach((s) => s.classList.toggle('hidden', Number(s.dataset.slide) !== slide));
   document.querySelectorAll('#introDots button').forEach((d) => d.classList.toggle('active', Number(d.dataset.to) === slide));

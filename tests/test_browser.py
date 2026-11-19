@@ -105,6 +105,8 @@ with sync_playwright() as p:
         # Overview: a banner says what happened, one token to review, starting from the commit before the latest.
         page.locator(".change").first.wait_for()
         assert "1 token changed" in page.locator(".banner").inner_text()
+        assert "assumed" in page.locator(".sync-note").inner_text(), "the starting point is labelled as an assumption"
+        assert "Last synced" in page.locator("#page-changes thead").first.inner_text()
         assert page.locator(".change").count() == 1
         assert "radius/button" in page.locator(".change").inner_text()
         assert page.title() == "(1) Venn"
@@ -138,6 +140,7 @@ with sync_playwright() as p:
         # History: file import still works for edge cases; the plugin's link is the normal path.
         nav(page, "history", narrow)
         assert "Nothing applied yet" in page.locator("#historyList").inner_text()
+        assert "Record in Venn" in page.locator("#historyList").inner_text()
         receipt = {"schema": "venn/receipt-v2", "sourceRepo": REPO, "sourcePath": PATH, "sourceSha": NEW_SHA,
                    "appliedAt": "2026-11-18T23:00:00.000Z", "actor": "Test designer", "changes": [
                        {"name": "radius/button", "type": "number", "before": 2, "after": 12, "readBack": 12},

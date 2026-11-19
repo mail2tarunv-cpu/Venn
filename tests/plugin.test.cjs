@@ -14,7 +14,8 @@ const TOKENS = {
 };
 const rgb = (hex) => ({ r: parseInt(hex.slice(1, 3), 16) / 255, g: parseInt(hex.slice(3, 5), 16) / 255, b: parseInt(hex.slice(5, 7), 16) / 255, a: 1 });
 
-function setup({ head = SHA } = {}) {
+function setup({ head = SHA, saved = { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json', collection: 'Penny 2.0' } } = {}) {
+  let fetches = 0;
   const messages = [];
   const writes = [];
   let headSha = head;
@@ -46,7 +47,7 @@ function setup({ head = SHA } = {}) {
     fileKey: 'FILE', root: { name: 'Test file' }, currentUser: { name: 'Test designer' },
     opened: [], openExternal(u) { this.opened.push(u); },
     showUI() {}, ui: { postMessage: (m) => messages.push(m), onmessage: null },
-    clientStorage: { getAsync: async () => ({ collection: 'Penny 2.0' }), setAsync: async () => {} },
+    clientStorage: { getAsync: async () => saved, setAsync: async (k, v) => { saved = v; } },
     variables: {
       getLocalVariableCollectionsAsync: async () => [collection],
       getVariableCollectionByIdAsync: async (id) => (id === 'coll' ? collection : null),
@@ -57,6 +58,7 @@ function setup({ head = SHA } = {}) {
     },
   };
   const fetch = async (url) => {
+    fetches++;
     if (url.startsWith('https://api.github.com/')) return { ok: true, status: 200, json: async () => [{ sha: headSha, commit: { message: 'Penny 2.0\n\nbody' } }] };
     if (url.startsWith('https://raw.githubusercontent.com/')) return { ok: true, status: 200, text: async () => JSON.stringify(TOKENS) };
     throw new Error('unexpected ' + url);
@@ -65,7 +67,7 @@ function setup({ head = SHA } = {}) {
   vm.createContext(ctx);
   vm.runInContext(code, ctx);
   return {
-    messages, writes, vars, figma, ctx,
+    messages, writes, vars, figma, ctx, fetches: () => fetches,
     get: (name) => vars.find((v) => v.name === name),
     moveHead: (s) => { headSha = s; },
     async send(m) { await figma.ui.onmessage(m); return messages.at(-1); },
@@ -155,11 +157,23 @@ const statusOf = (rows) => Object.fromEntries(rows.filter((r) => !r.implicit).ma
   assert.equal(gc.rows.find((x) => x.key === 'radius/button').status, 'differs', 'matched despite different spelling');
   assert.ok(!gc.rows.some((x) => x.status === 'extra' && /radius/i.test(x.name)), 'not reported as an extra variable');
 
+  // First run asks which repository to compare with; it never quietly checks the sample.
+  const h = setup({ saved: null });
+  await h.send({ type: 'init' });
+  const first = h.messages.find((m) => m.type === 'config');
+  assert.equal(first.setup, true);
+  assert.equal(first.config.repo, '');
+  assert.equal(first.sample.repo, 'mail2tarunv-cpu/penny-tokens');
+  assert.deepEqual(Array.from(first.collections), ['Penny 2.0']);
+  assert.equal(h.fetches(), 0, 'nothing is fetched before the user picks a repository');
+  assert.match((await h.send({ type: 'check', config: { repo: 'not a repo', path: '' } })).message, /owner\/name/);
+  assert.equal((await h.send({ type: 'check', config: { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json', collection: 'Penny 2.0' } })).type, 'checked');
+
   // Record in Venn only opens the Venn site with a receipt.
   const f = setup();
   await f.send({ type: 'open', url: 'https://venn-peach-eight.vercel.app/#receipt=abc' });
   assert.deepEqual(f.figma.opened, ['https://venn-peach-eight.vercel.app/#receipt=abc']);
   assert.equal((await f.send({ type: 'open', url: 'https://evil.example/#receipt=abc' })).type, 'error');
 
-  console.log('PASS plugin: same token rules as site, read-only check, modes, aliases, missing and extra variables, fix-everything run with read-back, consent, new-commit and conflict guards, full rollback, record-link guard');
+  console.log('PASS plugin: same token rules as site, read-only check, modes, aliases, missing and extra variables, fix-everything run with read-back, consent, new-commit and conflict guards, full rollback, record-link guard, first-run setup');
 })().catch((err) => { console.error(err); process.exit(1); });

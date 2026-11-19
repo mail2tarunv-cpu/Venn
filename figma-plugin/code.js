@@ -387,11 +387,18 @@ figma.ui.onmessage = async (msg) => {
     if (msg.type === 'init') {
       let saved = null;
       try { saved = await figma.clientStorage.getAsync('venn.config'); } catch (e) { /* no saved settings */ }
-      const config = Object.assign({}, DEFAULTS, saved || {});
+      if (!saved || !saved.repo) {
+        // First run: ask which repository to compare with, instead of quietly checking the sample.
+        const collections = (await figma.variables.getLocalVariableCollectionsAsync()).map((c) => c.name);
+        send('config', { config: { repo: '', path: '', collection: '' }, sample: DEFAULTS, collections, setup: true, site: VENN_SITE });
+        return;
+      }
+      const config = Object.assign({}, DEFAULTS, saved);
       send('config', { config, site: VENN_SITE });
       await check(config);
     } else if (msg.type === 'check') {
       const config = { repo: String(msg.config.repo).trim(), path: String(msg.config.path).trim(), collection: String(msg.config.collection || '') };
+      if (!/^[\w.-]+\/[\w.-]+$/.test(config.repo) || !config.path) throw Error('Enter the repository as owner/name and the path to its token file.');
       try { await figma.clientStorage.setAsync('venn.config', config); } catch (e) { /* settings just won't persist */ }
       await check(config);
     } else if (msg.type === 'open') {

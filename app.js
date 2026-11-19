@@ -225,7 +225,7 @@ function renderMap() {
     }).join('');
     const label = x.commit.date ? new Date(x.commit.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
     return `<div class="map-col ${after ? 'ahead' : ''} ${i === syncIdx ? 'synced' : ''} ${i === t.length - 1 ? 'last' : ''}">
-      ${i === syncIdx ? `<span class="sync-flag">Figma synced</span>` : ''}
+      ${i === syncIdx ? `<span class="sync-flag">Last synced</span>` : ''}
       ${cells}
       <div class="map-x"><span class="mono">${esc(short(x.commit.sha))}</span><small>${esc(label)}</small></div>
     </div>`;
@@ -253,7 +253,7 @@ function renderInventory(changes) {
     <div class="inv-figure"><span class="big">${entries.length}</span><span class="pill ${changes.length ? 'warn' : 'good'}">${changes.length ? `${changes.length} drifted` : 'All in Figma'}</span></div>
     <div class="split-bar" aria-hidden="true"><span class="seg color" style="flex:${colors / total}"></span><span class="seg number" style="flex:${(total - colors) / total}"></span></div>
     <div class="split-legend"><span><i class="lg color"></i>Colours ${colors}</span><span><i class="lg number"></i>Numbers ${entries.length - colors}</span></div>
-    <ul class="inv-list">${entries.map(([n, t], i) => `<li class="${i >= 12 ? 'more-row hidden' : ''}"><span class="mono">${entryLabel(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Drifted from Figma"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value, t.alias)}</span></li>`).join('')}</ul>
+    <ul class="inv-list">${entries.map(([n, t], i) => `<li class="${i >= 12 ? 'more-row hidden' : ''}"><span class="mono">${entryLabel(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Changed since the last sync"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value, t.alias)}</span></li>`).join('')}</ul>
     ${entries.length > 12 ? `<button class="show-more" data-more type="button">Show all ${entries.length}</button>` : ''}
   </div>`;
 }
@@ -270,7 +270,7 @@ function previewCard() {
   return `<div class="card preview-card">
     <div class="card-head"><div><h2>Component preview</h2><p>Primary button built from your tokens</p></div></div>
     <div class="preview-stage">
-      <div class="preview-cell"><label>Figma · <span class="mono">${esc(short(workspace.syncedSha))}</span></label><button class="specimen" tabindex="-1" style="${style(live.synced)}">Continue</button></div>
+      <div class="preview-cell"><label>Last synced · <span class="mono">${esc(short(workspace.syncedSha))}</span></label><button class="specimen" tabindex="-1" style="${style(live.synced)}">Continue</button></div>
       <div class="preview-cell"><label>Code · <span class="mono">${esc(short(live.commits[0].sha))}</span></label><button class="specimen" tabindex="-1" style="${style(live.head)}">Continue</button></div>
     </div>
   </div>`;
@@ -303,6 +303,13 @@ function vennMark({ drift = 0, animate = false } = {}) {
   </svg>`;
 }
 
+function syncNote() {
+  const sha = `<span class="mono">${esc(short(workspace.syncedSha))}</span>`;
+  return workspace.confirmedAt
+    ? `Last synced ${sha}, confirmed by the plugin ${esc(ago(workspace.confirmedAt))}`
+    : `Comparing with ${sha}, assumed to be what Figma has. <a href="#" data-goto="connections">Change</a>`;
+}
+
 function renderDashboard(changes, commits) {
   const body = $('changesBody');
   const sub = $('changesSub');
@@ -324,8 +331,9 @@ function renderDashboard(changes, commits) {
         ${vennMark({ drift: changes.length })}
         <div class="banner-copy">
           <span class="pill warn">Needs review</span>
-          <h2>${changes.length === 1 ? '1 token changed' : changes.length + ' tokens changed'} in code since Figma was last updated</h2>
+          <h2>${changes.length === 1 ? '1 token changed' : changes.length + ' tokens changed'} in code since the last sync</h2>
           <p>${plural(commits.length, 'push', 'pushes')} since then, latest <span class="mono">${esc(short(head.sha))}</span> “${esc(head.message)}” ${head.date ? esc(ago(head.date)) : ''}</p>
+          <p class="sync-note">${syncNote()}</p>
         </div>
         <div class="banner-actions"><button class="button primary" id="applyButton" type="button">${icon('figma')}Apply in Figma</button></div>
       </div>`
@@ -342,9 +350,9 @@ function renderDashboard(changes, commits) {
   const lastTouch = (n) => { const hit = live.commits.find((c) => live.timeline.find((x) => x.commit.sha === c.sha)?.changed.has(n)); return hit ? `<span class="commit-ref"><span class="mono">${esc(short(hit.sha))}</span><span class="msg">${esc(hit.message)}</span></span>` : '—'; };
   const driftTable = changes.length
     ? `<div class="card">
-        <div class="card-head"><div><h2>What changed</h2><p>Figma's value next to the value in code. Nothing in Figma moves until you apply it.</p></div></div>
+        <div class="card-head"><div><h2>What changed</h2><p>${workspace.confirmedAt ? 'Last synced is what the plugin confirmed in Figma.' : 'Last synced is the commit Venn assumes Figma matches. The plugin shows exactly what is in your file.'} Nothing in Figma moves until you apply it.</p></div></div>
         <div class="table-scroll"><table class="table">
-          <thead><tr><th>Token</th><th>Figma</th><th>Code</th><th>Changed in</th></tr></thead>
+          <thead><tr><th>Token</th><th>Last synced</th><th>Code</th><th>Changed in</th></tr></thead>
           <tbody>${changes.map((c, i) => `<tr class="change ${i >= 8 ? 'more-row hidden' : ''}">
             <td><div class="token-cell">${vennFor(c)}<span><span class="mono">${esc(c.token || c.name)}</span>${modeTag(c.mode)}<small>${kindLabel(c)}${c.beforeAlias !== c.afterAlias && c.before === c.after ? ' · same colour, new alias' : ''}</small></span></div></td>
             <td class="num from">${formatCell(c.type, c.before, c.beforeAlias)}</td>
@@ -357,7 +365,7 @@ function renderDashboard(changes, commits) {
     : '';
 
   const pendingSet = new Set(commits.map((c) => c.sha));
-  const statusFor = (c) => pendingSet.has(c.sha) ? '<span class="pill warn">Not in Figma</span>' : c.sha === workspace.syncedSha ? '<span class="pill good">Figma is here</span>' : '<span class="pill neutral">Earlier</span>';
+  const statusFor = (c) => pendingSet.has(c.sha) ? '<span class="pill warn">Not synced</span>' : c.sha === workspace.syncedSha ? '<span class="pill good">Last synced</span>' : '<span class="pill neutral">Earlier</span>';
   const changedCount = (sha) => { const x = live.timeline.find((y) => y.commit.sha === sha); return x ? (x.first ? '—' : x.changed.size) : '—'; };
   const pushes = `<div class="card">
       <div class="card-head"><div><h2>Recent pushes</h2><p>Every commit that touched the token file</p></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">GitHub${icon('external')}</a></div>
@@ -404,7 +412,7 @@ function renderTokensPage(changes) {
 function renderHistory() {
   const root = $('historyList');
   if (!receipts.length) {
-    root.innerHTML = `<div class="card empty"><svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg><h2>Nothing applied yet</h2><p>After you apply changes in Figma, import the plugin's receipt here</p></div>`;
+    root.innerHTML = `<div class="card empty"><svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg><h2>Nothing applied yet</h2><p>Apply changes with the Venn plugin in Figma, then press Record in Venn. They will show up here.</p></div>`;
     return;
   }
   root.innerHTML = `<div class="card"><div class="table-scroll"><table class="table">
@@ -434,6 +442,7 @@ function renderConnections() {
   const sel = $('baselineSelect');
   if (sel) sel.addEventListener('change', async () => {
     workspace.syncedSha = sel.value;
+    workspace.confirmedAt = null;
     save(KEYS.workspace, workspace);
     live.synced = await fetchTokens(workspace.repo, workspace.syncedSha, workspace.path).catch(() => null);
     render();
@@ -477,6 +486,7 @@ async function recordReceipt(data) {
     return;
   }
   workspace.syncedSha = receipt.sourceSha;
+  workspace.confirmedAt = receipt.appliedAt || new Date().toISOString();
   save(KEYS.workspace, workspace);
   live.synced = await fetchTokens(workspace.repo, workspace.syncedSha, workspace.path).catch(() => null);
   render();
@@ -600,6 +610,7 @@ function boot() {
 /* ---------- events ---------- */
 document.querySelectorAll('.nav-link').forEach((b) => b.addEventListener('click', () => showPage(b.dataset.page)));
 $('workspaceButton').addEventListener('click', () => showPage('connections'));
+document.addEventListener('click', (e) => { const go = e.target.closest('[data-goto]'); if (go) { e.preventDefault(); showPage(go.dataset.goto); } });
 $('menuButton').addEventListener('click', () => { $('app').classList.add('menu-open'); $('scrim').classList.remove('hidden'); });
 $('scrim').addEventListener('click', closeMenu);
 $('closeModal').addEventListener('click', closeModal);

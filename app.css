@@ -1,6 +1,6 @@
 /* Venn. Exact, calm, quietly technical: a designer's redline review, framed like a finished app.
-   Graphite neutrals in layers (backdrop, window, canvas, card), one cobalt accent, amber for colour
-   tokens and drift, tinted icon chips. The hero is a dot-matrix change map built from real commits. */
+   Graphite neutrals in layers (backdrop, window, canvas, card), one cobalt accent, amber only for
+   drift (token types are graphite and cobalt), tinted icon chips. The hero is a dot-matrix change map built from real commits. */
 :root {
   --backdrop: #e7e7ea;
   --window: #f4f4f5;
@@ -216,7 +216,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .legend { display: flex; gap: 14px; color: var(--ink-3); font-size: 12px; flex-wrap: wrap; align-items: center; }
 .legend span, .split-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .lg { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.lg.color { background: var(--amber); } .lg.number { background: var(--accent); } .lg.off { background: var(--dot-off); }
+.lg.color { background: var(--ink-2); } .lg.number { background: var(--accent); } .lg.off { background: var(--dot-off); }
 .map-scroll { overflow-x: auto; padding: 4px 20px 16px; }
 .map { display: flex; min-width: min-content; }
 .map-names { width: 210px; flex: none; display: grid; gap: 10px; padding-top: 32px; }
@@ -226,7 +226,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .map-col.synced::after { content: ""; position: absolute; right: -1px; top: 24px; bottom: 34px; border-right: 1.5px dashed var(--ink-3); }
 .sync-flag { position: absolute; top: 2px; right: -1px; transform: translateX(50%); font-size: 11px; height: 20px; line-height: 20px; padding: 0 8px; border-radius: 6px; background: var(--ink); color: #fff; white-space: nowrap; z-index: 1; }
 .cell { height: 28px; --dot: var(--dot-off); background-image: radial-gradient(circle at center, var(--dot) 3.2px, transparent 3.8px); background-size: 11px 11px; background-position: center; background-repeat: space; }
-.cell.on.color { --dot: var(--amber); }
+.cell.on.color { --dot: var(--ink-2); }
 .cell.on.number { --dot: var(--accent); }
 .map-col.ahead .cell:not(.on) { --dot: #d4d4d8; }
 .map-x { height: 34px; display: grid; align-content: center; justify-items: center; gap: 0; border-top: 1px solid var(--line); margin-top: 4px; }
@@ -238,7 +238,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .inv-figure .big { font-size: 32px; line-height: 36px; font-weight: 500; letter-spacing: -0.03em; }
 .split-bar { display: flex; gap: 4px; height: 10px; margin: 16px 20px 10px; }
 .split-bar .seg { border-radius: 4px; min-width: 6px; }
-.split-bar .seg.color { background: repeating-linear-gradient(135deg, var(--amber) 0 6px, #fbbf24 6px 12px); }
+.split-bar .seg.color { background: repeating-linear-gradient(135deg, var(--ink-2) 0 6px, var(--ink-3) 6px 12px); }
 .split-bar .seg.number { background: repeating-linear-gradient(135deg, var(--accent) 0 6px, #3b7be6 6px 12px); }
 .split-legend { display: flex; gap: 16px; padding: 0 20px 12px; color: var(--ink-3); font-size: 12px; border-bottom: 1px solid var(--line); }
 .inv-list { padding: 6px 0; }
@@ -463,3 +463,7 @@ main { padding: 28px; width: 100%; max-width: 1440px; }
 .map-name .mode-tag { margin-left: 6px; height: 16px; line-height: 14px; font-size: 10px; }
 .show-more { width: 100%; height: 44px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink-2); font: 500 13px var(--sans); border-radius: 0 0 var(--r-card) var(--r-card); }
 .show-more:hover { background: #fcfcfc; color: var(--ink); }
+
+/* Where the comparison starts: confirmed by the plugin, or assumed until it runs. */
+.sync-note { margin-top: 4px; font-size: 12.5px; color: var(--ink-3); }
+.sync-note a { color: var(--accent-ink); }

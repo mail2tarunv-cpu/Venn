@@ -15,6 +15,13 @@
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-mark" viewBox="0 0 28 18"><circle cx="10" cy="9" r="7" /><circle cx="18" cy="9" r="7" /></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></symbol>
+  <symbol id="i-chevrons" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+  <symbol id="i-commit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><line x1="3" x2="9" y1="12" y2="12" /><line x1="15" x2="21" y1="12" y2="12" /></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+  <symbol id="i-drift" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6" /><circle cx="15" cy="12" r="6" /></symbol>
   <symbol id="i-changes" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><path d="M13 6h3a2 2 0 0 1 2 2v7" /><path d="M11 18H8a2 2 0 0 1-2-2V9" /></symbol>
   <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></symbol>
   <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5" /><path d="M9 8V2" /><path d="M15 8V2" /><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" /></symbol>
@@ -89,41 +96,55 @@
   <aside class="sidebar" id="sidebar">
     <div class="brand"><svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg>Venn</div>
     <button class="workspace" id="workspaceButton" type="button" aria-label="Open connections">
-      <svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>
+      <img class="avatar" id="ownerAvatar" alt="" width="28" height="28" />
       <span class="workspace-copy"><strong id="workspaceName">—</strong><small id="workspaceFile">—</small></span>
+      <svg class="icon chevron" aria-hidden="true"><use href="#i-chevrons" /></svg>
     </button>
+
+    <div class="nav-label">Workspace</div>
     <nav class="nav" aria-label="Workspace">
-      <button class="nav-link active" data-page="changes" type="button"><svg class="icon" aria-hidden="true"><use href="#i-changes" /></svg><span>Changes</span><span class="count hidden" id="navCount">0</span></button>
-      <button class="nav-link" data-page="history" type="button"><svg class="icon" aria-hidden="true"><use href="#i-history" /></svg><span>History</span></button>
+      <button class="nav-link active" data-page="changes" type="button"><svg class="icon" aria-hidden="true"><use href="#i-grid" /></svg><span>Overview</span><span class="count hidden" id="navCount">0</span></button>
+      <button class="nav-link" data-page="history" type="button"><svg class="icon" aria-hidden="true"><use href="#i-history" /></svg><span>History</span><span class="count muted hidden" id="historyCount">0</span></button>
       <button class="nav-link" data-page="connections" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plug" /></svg><span>Connections</span></button>
     </nav>
-    <div class="watch" id="watch"><span class="live-dot" aria-hidden="true"></span><span id="watchText">Connecting</span></div>
+
+    <div class="nav-label">Sources</div>
+    <div class="sources" id="sourceList"></div>
+
+    <div class="side-foot">
+      <a class="plugin-card" href="figma-plugin.zip" download>
+        <span class="chip-icon violet"><svg class="icon" aria-hidden="true"><use href="#i-figma" /></svg></span>
+        <span><strong>Figma plugin</strong><small>For Figma Desktop</small></span>
+        <svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>
+      </a>
+      <div class="watch" id="watch"><span class="live-dot" aria-hidden="true"></span><span id="watchText">Connecting</span></div>
+    </div>
   </aside>
 
   <div class="column">
     <header class="topbar">
       <button class="menu-button" id="menuButton" type="button" aria-label="Open menu"><span></span><span></span></button>
-      <span class="crumbs"><span id="crumbRepo">—</span><span class="sep">/</span><strong id="pageCrumb">Changes</strong></span>
+      <span class="crumbs"><svg class="icon" aria-hidden="true"><use href="#i-grid" /></svg><span id="crumbRepo">—</span><svg class="icon sep" aria-hidden="true"><use href="#i-chevron-right" /></svg><strong id="pageCrumb">Overview</strong></span>
+      <div class="top-actions">
+        <button class="icon-button bordered" id="notifyButton" type="button" aria-label="Notify me about new pushes" title="Notify me about new pushes"><svg class="icon" aria-hidden="true"><use href="#i-bell" /></svg></button>
+        <button class="button" id="checkNow" type="button"><svg class="icon" aria-hidden="true"><use href="#i-refresh" /></svg>Check now</button>
+        <img class="avatar" id="topAvatar" alt="" width="32" height="32" />
+      </div>
     </header>
 
     <main id="main">
       <section class="page" id="page-changes" aria-labelledby="changesTitle">
         <div class="page-head">
-          <div><h1 id="changesTitle">Changes</h1><p id="changesSub">Checking GitHub</p></div>
-          <div class="head-actions">
-            <button class="button ghost" id="notifyButton" type="button"><svg class="icon" aria-hidden="true"><use href="#i-bell" /></svg>Notify me</button>
-            <button class="button" id="checkNow" type="button"><svg class="icon" aria-hidden="true"><use href="#i-refresh" /></svg>Check now</button>
-          </div>
+          <div><h1 id="changesTitle">Overview</h1><p id="changesSub">Checking GitHub</p></div>
+          <div class="head-actions" id="headActions"></div>
         </div>
-        <div class="changes-grid">
-          <div id="changesBody"></div>
-          <aside class="sync-card" id="syncCard" aria-label="Sync status"></aside>
-        </div>
+        <div id="dashboard"></div>
+        <div id="changesBody"></div>
       </section>
 
       <section class="page hidden" id="page-history" aria-labelledby="historyTitle">
         <div class="page-head">
-          <div><h1 id="historyTitle">History</h1><p>Updates applied to Figma</p></div>
+          <div><h1 id="historyTitle">History</h1><p>Updates applied to Figma, with the values the plugin read back</p></div>
           <label class="button file-button" for="receiptFile"><svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg>Import receipt</label>
           <input id="receiptFile" type="file" accept=".json,application/json" hidden />
         </div>
@@ -132,7 +153,7 @@
 
       <section class="page hidden" id="page-connections" aria-labelledby="connTitle">
         <div class="page-head"><div><h1 id="connTitle">Connections</h1><p>Where Venn reads from and writes to</p></div></div>
-        <div class="rows" id="connectionRows"></div>
+        <div class="card rows" id="connectionRows"></div>
         <div class="danger-zone"><button class="button ghost" id="resetWorkspace" type="button">Disconnect and start over</button></div>
       </section>
     </main>

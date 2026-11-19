@@ -96,7 +96,7 @@ async function fetchTokens(repo, sha, path) {
 }
 
 /* ---------- state derived from GitHub ---------- */
-const live = { commits: [], head: null, synced: null, error: null, checkedAt: null, loading: true };
+const live = { commits: [], head: null, synced: null, timeline: [], error: null, checkedAt: null, loading: true };
 let newPushHandled = null;
 
 async function refresh({ manual = false } = {}) {
@@ -110,6 +110,14 @@ async function refresh({ manual = false } = {}) {
       const headSha = commits[0].sha;
       live.head = await fetchTokens(workspace.repo, headSha, workspace.path);
       live.synced = await fetchTokens(workspace.repo, workspace.syncedSha, workspace.path).catch(() => null);
+      // Token values at each recent commit, oldest first, for the change map.
+      const recent = commits.slice(0, 12).reverse();
+      const files = await Promise.all(recent.map((c) => fetchTokens(workspace.repo, c.sha, workspace.path).catch(() => null)));
+      live.timeline = recent.map((commit, i) => {
+        const prev = i > 0 ? files[i - 1] : null;
+        const changed = prev && files[i] ? new Set(Tokens.diff(prev, files[i]).map((d) => d.name)) : new Set();
+        return { commit, tokens: files[i], changed, first: i === 0 };
+      });
       if (previousHead && previousHead !== headSha && newPushHandled !== headSha && headSha !== workspace.syncedSha) announcePush(commits[0]);
       newPushHandled = headSha;
     }
@@ -140,143 +148,220 @@ function announcePush(commit) {
 }
 
 /* ---------- rendering ---------- */
+const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="#i-${name}" /></svg>`;
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
 function render() {
   if (!workspace) return;
   const { changes, commits } = pending();
-  $('workspaceName').textContent = workspace.repo.split('/')[1];
+  const [owner, name] = workspace.repo.split('/');
+  const avatar = `https://github.com/${encodeURIComponent(owner)}.png?size=80`;
+  for (const id of ['ownerAvatar', 'topAvatar']) { const img = $(id); if (img.getAttribute('src') !== avatar) { img.src = avatar; img.alt = owner; } }
+  $('workspaceName').textContent = name;
   $('workspaceFile').textContent = workspace.path;
-  $('crumbRepo').textContent = workspace.repo;
-  const count = changes.length;
-  $('navCount').textContent = count;
-  $('navCount').classList.toggle('hidden', !count);
-  document.title = count ? `(${count}) Venn` : 'Venn';
+  $('crumbRepo').textContent = name;
+  $('navCount').textContent = changes.length;
+  $('navCount').classList.toggle('hidden', !changes.length);
+  $('historyCount').textContent = receipts.length;
+  $('historyCount').classList.toggle('hidden', !receipts.length);
+  document.title = changes.length ? `(${changes.length}) Venn` : 'Venn';
 
   const watch = $('watch');
   watch.className = 'watch ' + (live.error ? 'error' : live.checkedAt ? 'live' : '');
   $('watchText').textContent = live.error ? 'Not connected' : live.checkedAt ? `Watching · checked ${ago(new Date(live.checkedAt).toISOString())}` : 'Connecting';
 
-  renderChanges(changes, commits);
-  renderSync(changes, commits);
+  $('sourceList').innerHTML = `
+    <a class="source" href="https://github.com/${esc(workspace.repo)}" target="_blank" rel="noopener noreferrer">${icon('github')}<span>${esc(name)}</span><span class="dot ${live.error ? 'bad' : 'good'}"></span></a>
+    ${workspace.figmaUrl ? `<a class="source" href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">${icon('figma')}<span>Figma file</span><span class="dot ${changes.length ? 'warn' : 'good'}"></span></a>` : `<span class="source muted">${icon('figma')}<span>No Figma file</span></span>`}`;
+
+  renderDashboard(changes, commits);
   renderHistory();
   renderConnections();
   const canNotify = 'Notification' in window && Notification.permission === 'default';
   $('notifyButton').classList.toggle('hidden', !canNotify);
 }
 
-const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="#i-${name}" /></svg>`;
-
 /* The moment: Figma's value (dashed grey) drawn over code's value (cobalt). */
 function vennFor(c) {
-  const label = c.kind === 'added' ? 'New in code' : c.kind === 'removed' ? 'Removed from code' : 'Figma and code';
   if (c.type === 'color') {
-    const a = c.before ? `<circle class="swatch-figma" cx="26" cy="24" r="16" fill="${esc(c.before)}" />` : `<circle class="figma-stroke" cx="26" cy="24" r="16" />`;
-    const b = c.after ? `<circle class="swatch-code" cx="46" cy="24" r="16" fill="${esc(c.after)}" />` : `<circle class="figma-stroke" cx="46" cy="24" r="16" />`;
-    return `<svg class="venn" viewBox="0 0 72 48" role="img" aria-label="${esc(label)}">${a}${b}</svg>`;
+    const a = c.before ? `<circle class="swatch-figma" cx="15" cy="16" r="11" fill="${esc(c.before)}" />` : `<circle class="figma-stroke" cx="15" cy="16" r="11" />`;
+    const b = c.after ? `<circle class="swatch-code" cx="29" cy="16" r="11" fill="${esc(c.after)}" />` : `<circle class="figma-stroke" cx="29" cy="16" r="11" />`;
+    return `<svg class="venn" viewBox="0 0 44 32" aria-hidden="true">${a}${b}</svg>`;
   }
   const before = c.before ?? 0;
   const after = c.after ?? 0;
   if (/radius/.test(c.name)) {
-    // Two corners laid over each other, like a redline of the same component.
-    const r = (v) => Math.max(0, Math.min(22, v));
-    const shape = (v, cls) => `<rect class="${cls}" x="8" y="6" width="56" height="36" rx="${r(v)}" />`;
-    return `<svg class="venn" viewBox="0 0 72 48" role="img" aria-label="Corner radius ${esc(before)} to ${esc(after)}">${shape(after, 'code-stroke')}${shape(before, 'figma-stroke')}</svg>`;
+    const r = (v) => Math.max(0, Math.min(13, v));
+    const shape = (v, cls) => `<rect class="${cls}" x="4" y="4" width="36" height="24" rx="${r(v)}" />`;
+    return `<svg class="venn" viewBox="0 0 44 32" aria-hidden="true">${shape(after, 'code-stroke')}${shape(before, 'figma-stroke')}</svg>`;
   }
-  // Lengths: two measured bars on one baseline.
   const max = Math.max(before, after, 1);
-  const w = (v) => Math.max(2, Math.round((v / max) * 60));
-  return `<svg class="venn" viewBox="0 0 72 48" role="img" aria-label="${esc(before)} to ${esc(after)}">
-    <line class="tick" x1="6" y1="10" x2="6" y2="38" />
-    <rect class="figma-stroke" x="6" y="14" width="${w(before)}" height="8" rx="2" />
-    <rect class="code-stroke" x="6" y="26" width="${w(after)}" height="8" rx="2" />
+  const w = (v) => Math.max(2, Math.round((v / max) * 36));
+  return `<svg class="venn" viewBox="0 0 44 32" aria-hidden="true">
+    <line class="tick" x1="4" y1="6" x2="4" y2="26" />
+    <rect class="figma-stroke" x="4" y="8" width="${w(before)}" height="6" rx="2" />
+    <rect class="code-stroke" x="4" y="18" width="${w(after)}" height="6" rx="2" />
   </svg>`;
 }
 
-function previewFor(changes) {
-  const relevant = changes.some((c) => /^(radius|action|text)\//.test(c.name));
-  if (!relevant || !live.head || !live.synced) return '';
+function formatCell(type, value) {
+  if (value === null || value === undefined) return '<span class="none">—</span>';
+  return type === 'color' ? `<span class="chip" style="background:${esc(value)}"></span>${esc(value)}` : esc(value);
+}
+
+function statCard({ tone, glyph, label, value, foot, badge }) {
+  return `<div class="card stat">
+    <div class="stat-top"><span class="chip-icon ${tone}">${icon(glyph)}</span><span class="stat-label">${label}</span>${badge || ''}</div>
+    <div class="stat-value">${value}</div>
+    <div class="stat-foot">${foot}</div>
+  </div>`;
+}
+
+function renderStats(changes, commits) {
+  const head = live.commits[0];
+  const tokens = Object.values(live.head || {});
+  const colors = tokens.filter((t) => t.type === 'color').length;
+  return `<div class="stats">
+    ${statCard({ tone: changes.length ? 'amber' : 'green', glyph: 'drift', label: 'Drifted tokens', value: changes.length,
+      foot: changes.length ? `Since Figma synced to <span class="mono">${esc(short(workspace.syncedSha))}</span>` : 'Figma matches the latest commit' })}
+    ${statCard({ tone: 'blue', glyph: 'commit', label: 'Commits ahead of Figma', value: commits.length,
+      foot: `${plural(live.commits.length, 'commit', 'commits')} touch <span class="mono">${esc(workspace.path)}</span>` })}
+    ${statCard({ tone: 'violet', glyph: 'layers', label: 'Tokens tracked', value: tokens.length,
+      foot: `${plural(colors, 'colour', 'colours')} · ${plural(tokens.length - colors, 'number', 'numbers')}` })}
+    ${statCard({ tone: 'green', glyph: 'clock', label: 'Last push', value: head?.date ? esc(ago(head.date)) : '—',
+      foot: head ? `by ${esc(head.author)}` : '' })}
+  </div>`;
+}
+
+/* Hero: every token across recent commits, as a dot matrix, with the Figma sync point marked. */
+function renderMap() {
+  const t = live.timeline;
+  if (!t.length || !live.head) return '';
+  const names = Object.keys(live.head).sort();
+  const syncIdx = t.findIndex((x) => x.commit.sha === workspace.syncedSha);
+  const cols = t.map((x, i) => {
+    const after = syncIdx !== -1 && i > syncIdx;
+    const cells = names.map((n) => {
+      const type = live.head[n].type;
+      const changed = x.changed.has(n);
+      const before = i > 0 && t[i - 1].tokens ? t[i - 1].tokens[n]?.value : null;
+      const now = x.tokens?.[n]?.value;
+      const tip = changed ? `${n}: ${before ?? '—'} → ${now ?? '—'} in ${short(x.commit.sha)}` : `${n}: ${now ?? '—'}`;
+      return `<div class="cell ${changed ? 'on ' + type : ''}" title="${esc(tip)}"></div>`;
+    }).join('');
+    const label = x.commit.date ? new Date(x.commit.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+    return `<div class="map-col ${after ? 'ahead' : ''} ${i === syncIdx ? 'synced' : ''}">
+      ${i === syncIdx ? `<span class="sync-flag">Figma synced</span>` : ''}
+      ${cells}
+      <div class="map-x"><span class="mono">${esc(short(x.commit.sha))}</span><small>${esc(label)}</small></div>
+    </div>`;
+  }).join('');
+  const shown = t.length < live.commits.length ? `Last ${t.length} of ${live.commits.length} commits` : `All ${plural(t.length, 'commit', 'commits')}`;
+  return `<div class="card map-card">
+    <div class="card-head">
+      <div><h2>Change map</h2><p>${shown} to <span class="mono">${esc(workspace.path)}</span>, oldest on the left</p></div>
+      <div class="legend"><span><i class="lg color"></i>Colour changed</span><span><i class="lg number"></i>Number changed</span><span><i class="lg off"></i>Unchanged</span></div>
+    </div>
+    <div class="map-scroll"><div class="map">
+      <div class="map-names">${names.map((n) => `<div class="map-name mono">${esc(n)}</div>`).join('')}<div class="map-x"></div></div>
+      ${cols}
+    </div></div>
+  </div>`;
+}
+
+function renderInventory(changes) {
+  const entries = Object.entries(live.head || {}).sort((a, b) => a[0].localeCompare(b[0]));
+  const colors = entries.filter(([, t]) => t.type === 'color').length;
+  const total = entries.length || 1;
+  const drifted = new Set(changes.map((c) => c.name));
+  return `<div class="card inventory">
+    <div class="card-head"><div><h2>Tokens</h2><p>Current values in code</p></div></div>
+    <div class="inv-figure"><span class="big">${entries.length}</span><span class="pill ${changes.length ? 'warn' : 'good'}">${changes.length ? `${changes.length} drifted` : 'All in Figma'}</span></div>
+    <div class="split-bar" aria-hidden="true"><span class="seg color" style="flex:${colors / total}"></span><span class="seg number" style="flex:${(total - colors) / total}"></span></div>
+    <div class="split-legend"><span><i class="lg color"></i>Colours ${colors}</span><span><i class="lg number"></i>Numbers ${entries.length - colors}</span></div>
+    <ul class="inv-list">${entries.map(([n, t]) => `<li><span class="mono">${esc(n)}</span>${drifted.has(n) ? '<span class="dot warn" title="Drifted from Figma"></span>' : ''}<span class="inv-val">${formatCell(t.type, t.value)}</span></li>`).join('')}</ul>
+  </div>`;
+}
+
+function previewCard() {
+  if (!live.head || !live.synced) return '';
   const style = (t) => {
     const radius = t['radius/button']?.value ?? 8;
     const bg = t['action/primary']?.value ?? '#171717';
     const fg = t['text/on-brand']?.value ?? '#FFFFFF';
-    return `border-radius:${radius}px;background:${esc(bg)};color:${esc(fg)}`;
+    const pad = t['spacing/component']?.value ?? 16;
+    return `border-radius:${radius}px;background:${esc(bg)};color:${esc(fg)};padding:0 ${pad * 1.5}px`;
   };
-  return `<div class="preview" aria-label="Primary button built from your tokens">
-    <div class="preview-cell"><label>Figma · last sync ${esc(short(workspace.syncedSha))}</label><button class="specimen" tabindex="-1" style="${style(live.synced)}">Continue</button></div>
-    <div class="preview-cell"><label>Code · ${esc(short(live.commits[0].sha))}</label><button class="specimen" tabindex="-1" style="${style(live.head)}">Continue</button></div>
+  return `<div class="card preview-card">
+    <div class="card-head"><div><h2>Component preview</h2><p>Primary button built from your tokens</p></div></div>
+    <div class="preview-stage">
+      <div class="preview-cell"><label>Figma · <span class="mono">${esc(short(workspace.syncedSha))}</span></label><button class="specimen" tabindex="-1" style="${style(live.synced)}">Continue</button></div>
+      <div class="preview-cell"><label>Code · <span class="mono">${esc(short(live.commits[0].sha))}</span></label><button class="specimen" tabindex="-1" style="${style(live.head)}">Continue</button></div>
+    </div>
   </div>`;
 }
 
-function renderChanges(changes, commits) {
+function renderDashboard(changes, commits) {
+  const dash = $('dashboard');
   const body = $('changesBody');
   const sub = $('changesSub');
-  if (live.loading) { sub.textContent = 'Checking GitHub'; body.innerHTML = ''; return; }
+  const actions = $('headActions');
+  if (live.loading) { sub.textContent = 'Checking GitHub'; dash.innerHTML = '<div class="skeleton"></div>'; body.innerHTML = ''; actions.innerHTML = ''; return; }
   if (live.error) {
     sub.textContent = 'Could not check GitHub';
-    body.innerHTML = `<div class="notice" role="alert">${esc(live.error)}</div>`;
+    dash.innerHTML = `<div class="notice" role="alert">${esc(live.error)}</div>`;
+    body.innerHTML = ''; actions.innerHTML = '';
     return;
   }
   const head = live.commits[0];
-  sub.textContent = `${workspace.repo} · ${workspace.path}`;
-  if (!changes.length) {
-    body.innerHTML = `<div class="card empty">
-      <svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg>
-      <h2>Figma matches your code</h2>
-      <p>No token has changed since the commit Figma was last synced to</p>
-      <span class="sha">${esc(short(workspace.syncedSha))}</span>
-    </div>`;
-    return;
-  }
-  const kind = (c) => (c.kind === 'changed' ? 'Changed' : c.kind === 'added' ? 'New in code' : 'Removed from code');
-  const rows = changes.map((c) => `<div class="change">
-      ${vennFor(c)}
-      <div class="change-name">${esc(c.name)}<small>${kind(c)}</small></div>
-      <div class="values"><span class="from">${formatValue(c.type, c.before)}</span><span class="arrow">→</span><span class="to">${formatValue(c.type, c.after)}</span></div>
-    </div>`).join('');
-  const commitRows = commits.map((c) => `<div class="commit-row">
-      <div><strong>${esc(c.message)}</strong><small>${esc(c.author)} · ${c.date ? esc(ago(c.date)) : ''}</small></div>
-      <a class="sha" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(short(c.sha))}</a>
-    </div>`).join('');
-  body.innerHTML = `<div class="card">
-      <div class="card-head">
-        <div><h2>${changes.length === 1 ? '1 token drifted' : changes.length + ' tokens drifted'} from Figma</h2><p>Up to ${esc(short(head.sha))} · ${esc(head.message)}</p></div>
-        <span class="status">Needs review</span>
-      </div>
-      <div class="legend"><span><i class="f"></i>Figma</span><span><i class="c"></i>Code</span></div>
-      ${rows}
-      ${previewFor(changes)}
-      <div class="card-foot"><p>Figma changes only after you review each value in the plugin</p><button class="button primary" id="applyButton" type="button">${icon('figma')}Apply with plugin</button></div>
-    </div>
-    <h2 class="section-label">Commits since last sync</h2>
-    <div class="card">${commitRows}</div>`;
-  $('applyButton').addEventListener('click', () => openModal());
-}
+  sub.innerHTML = `Design tokens from <span class="mono">${esc(workspace.repo)}</span> compared with Figma`;
+  actions.innerHTML = changes.length ? `<button class="button primary" id="applyButton" type="button">${icon('figma')}Apply with plugin</button>` : '';
+  if (changes.length) $('applyButton').addEventListener('click', () => openModal());
 
-/* Signature: two circles that overlap when Figma and code agree, and pull apart as they drift. */
-function renderSync(changes, commits) {
-  const card = $('syncCard');
-  if (live.loading || live.error) { card.innerHTML = ''; card.classList.add('hidden'); return; }
-  card.classList.remove('hidden');
-  card.classList.add('card');
-  const drift = Math.min(changes.length, 4);
-  const offset = drift ? 10 + drift * 5 : 4;
-  const head = live.commits[0];
-  const figma = workspace.figmaUrl
-    ? `<a href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">Open file</a>`
-    : '<span class="sha">Not linked</span>';
-  card.innerHTML = `
-    <div class="sync-mark" aria-hidden="true"><svg viewBox="0 0 128 72">
-      <circle class="c-figma" cx="64" cy="36" r="28" style="transform:translateX(-${offset}px)" />
-      <circle class="c-code" cx="64" cy="36" r="28" style="transform:translateX(${offset}px)" />
-    </svg></div>
-    <div class="sync-title">
-      <h2>${changes.length ? 'Drifting' : 'In sync'}</h2>
-      <p>${changes.length ? `${commits.length} ${commits.length === 1 ? 'commit' : 'commits'} ahead of Figma` : 'Figma matches the latest commit'}</p>
-    </div>
-    <dl class="facts">
-      <div><dt>Figma last synced to</dt><dd><span class="sha">${esc(short(workspace.syncedSha))}</span></dd></div>
-      <div><dt>Latest commit</dt><dd><a class="sha" href="${esc(head.url)}" target="_blank" rel="noopener noreferrer">${esc(short(head.sha))}</a> ${esc(head.message)}</dd></div>
-      <div><dt>Figma file</dt><dd>${figma}</dd></div>
-    </dl>`;
+  dash.innerHTML = `${renderStats(changes, commits)}<div class="grid-2">${renderMap()}${renderInventory(changes)}</div>`;
+
+  const kindLabel = (c) => (c.kind === 'changed' ? 'Changed' : c.kind === 'added' ? 'New in code' : 'Removed');
+  const lastTouch = (n) => { const hit = live.commits.find((c) => live.timeline.find((x) => x.commit.sha === c.sha)?.changed.has(n)); return hit ? `<span class="mono">${esc(short(hit.sha))}</span>` : '—'; };
+  const driftTable = changes.length
+    ? `<div class="card">
+        <div class="card-head"><div><h2>Drifted tokens</h2><p>Up to <span class="mono">${esc(short(head.sha))}</span> · ${esc(head.message)}</p></div><span class="pill warn">Needs review</span></div>
+        <div class="table-scroll"><table class="table">
+          <thead><tr><th>Token</th><th>Change</th><th>Figma</th><th>Code</th><th>Commit</th></tr></thead>
+          <tbody>${changes.map((c) => `<tr class="change">
+            <td><div class="token-cell">${vennFor(c)}<span class="mono">${esc(c.name)}</span></div></td>
+            <td><span class="pill ${c.kind === 'changed' ? 'neutral' : 'warn'}">${kindLabel(c)}</span></td>
+            <td class="num from">${formatCell(c.type, c.before)}</td>
+            <td class="num to">${formatCell(c.type, c.after)}</td>
+            <td>${lastTouch(c.name)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        <div class="card-foot"><p>Figma changes only after you review each value in the plugin</p></div>
+      </div>`
+    : `<div class="card empty">
+        <svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg>
+        <h2>Figma matches your code</h2>
+        <p>No token has changed since the commit Figma was last synced to</p>
+        <span class="mono muted">${esc(short(workspace.syncedSha))}</span>
+      </div>`;
+
+  const pendingSet = new Set(commits.map((c) => c.sha));
+  const statusFor = (c) => pendingSet.has(c.sha) ? '<span class="pill warn">Not in Figma</span>' : c.sha === workspace.syncedSha ? '<span class="pill good">Synced</span>' : '<span class="pill neutral">Before sync</span>';
+  const changedCount = (sha) => { const x = live.timeline.find((y) => y.commit.sha === sha); return x ? (x.first ? '—' : x.changed.size) : '—'; };
+  const pushes = `<div class="card">
+      <div class="card-head"><div><h2>Recent pushes</h2><p>Commits that touched the token file</p></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">View on GitHub${icon('external')}</a></div>
+      <div class="table-scroll"><table class="table">
+        <thead><tr><th>Commit</th><th>Author</th><th>Pushed</th><th class="num">Tokens changed</th><th>Status</th></tr></thead>
+        <tbody>${live.commits.slice(0, 8).map((c) => `<tr class="${pendingSet.has(c.sha) ? 'commit-row' : 'commit-row-synced'}">
+          <td><div class="commit-cell"><a class="mono sha" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(short(c.sha))}</a><span class="msg">${esc(c.message)}</span></div></td>
+          <td>${esc(c.author)}</td>
+          <td class="muted">${c.date ? esc(ago(c.date)) : '—'}</td>
+          <td class="num">${changedCount(c.sha)}</td>
+          <td>${statusFor(c)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>`;
+
+  body.innerHTML = `<div class="grid-2">${driftTable}${previewCard()}</div>${pushes}`;
 }
 
 function renderHistory() {
@@ -285,11 +370,17 @@ function renderHistory() {
     root.innerHTML = `<div class="card empty"><svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg><h2>Nothing applied yet</h2><p>After you apply changes in Figma, import the plugin's receipt here</p></div>`;
     return;
   }
-  root.innerHTML = `<div class="card">${receipts.map((r) => `<div class="history-item">
-      <header><strong>${r.changes.length} ${r.changes.length === 1 ? 'variable' : 'variables'} updated in Figma</strong><small>${esc(new Date(r.appliedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}</small></header>
-      <div>${r.changes.map((c) => `<div class="values"><span class="name">${esc(c.name)}</span><span class="from">${formatValue(c.type, c.before)}</span><span class="arrow">→</span><span class="to">${formatValue(c.type, c.readBack)}</span></div>`).join('')}</div>
-      <small>${esc(r.actor || 'Figma plugin')} · commit ${esc(short(r.sourceSha))} · values read back by the plugin</small>
-    </div>`).join('')}</div>`;
+  root.innerHTML = `<div class="card"><div class="table-scroll"><table class="table">
+    <thead><tr><th>Applied</th><th>Token</th><th>Before</th><th>Read back</th><th>Commit</th><th>By</th></tr></thead>
+    <tbody>${receipts.flatMap((r) => r.changes.map((c, i) => `<tr class="history-item">
+      <td class="muted">${i === 0 ? esc(new Date(r.appliedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })) : ''}</td>
+      <td><div class="token-cell">${vennFor({ ...c, after: c.readBack })}<span class="mono">${esc(c.name)}</span></div></td>
+      <td class="num from">${formatCell(c.type, c.before)}</td>
+      <td class="num to">${formatCell(c.type, c.readBack)}</td>
+      <td><span class="mono">${esc(short(r.sourceSha))}</span></td>
+      <td>${esc(r.actor || 'Figma plugin')}</td>
+    </tr>`)).join('')}</tbody>
+  </table></div><div class="card-foot"><p>Values are read back by the plugin after writing, not independently verified</p></div></div>`;
 }
 
 function renderConnections() {
@@ -297,15 +388,15 @@ function renderConnections() {
     ? `<a href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">${esc(workspace.figmaUrl.replace(/^https:\/\/(www\.)?/, ''))}</a>`
     : 'No file linked';
   $('connectionRows').innerHTML = `
-    <div class="row">${icon('github')}<div><strong>GitHub</strong><p><a href="https://github.com/${esc(workspace.repo)}" target="_blank" rel="noopener noreferrer">${esc(workspace.repo)}</a> · <span class="mono">${esc(workspace.path)}</span></p></div><span class="status ${live.error ? '' : 'ok'}">${live.error ? 'Problem' : 'Connected'}</span></div>
-    <div class="row">${icon('figma')}<div><strong>Figma file</strong><p>${figma}</p></div></div>
-    <div class="row">${icon('history')}<div><strong>Last synced commit</strong><p><span class="sha">${esc(short(workspace.syncedSha))}</span></p></div></div>
-    <div class="row">${icon('plug')}<div><strong>Figma plugin</strong><p>Reads this repository and updates the open file after you review it</p></div><a class="button" href="figma-plugin.zip" download>${icon('download')}Download</a></div>`;
+    <div class="row"><span class="chip-icon neutral">${icon('github')}</span><div><strong>GitHub</strong><p><a href="https://github.com/${esc(workspace.repo)}" target="_blank" rel="noopener noreferrer">${esc(workspace.repo)}</a> · <span class="mono">${esc(workspace.path)}</span></p></div><span class="pill ${live.error ? 'warn' : 'good'}">${live.error ? 'Problem' : 'Connected'}</span></div>
+    <div class="row"><span class="chip-icon violet">${icon('figma')}</span><div><strong>Figma file</strong><p>${figma}</p></div></div>
+    <div class="row"><span class="chip-icon blue">${icon('commit')}</span><div><strong>Last synced commit</strong><p><span class="mono">${esc(short(workspace.syncedSha))}</span></p></div></div>
+    <div class="row"><span class="chip-icon green">${icon('plug')}</span><div><strong>Figma plugin</strong><p>Reads this repository and updates the open file after you review it</p></div><a class="button" href="figma-plugin.zip" download>${icon('download')}Download</a></div>`;
   $('openFigma').href = workspace.figmaUrl || 'https://www.figma.com';
 }
 
 /* ---------- navigation, modal ---------- */
-const PAGE_NAMES = { changes: 'Changes', history: 'History', connections: 'Connections' };
+const PAGE_NAMES = { changes: 'Overview', history: 'History', connections: 'Connections' };
 function showPage(name) {
   if (!PAGE_NAMES[name]) return;
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('hidden', p.id !== 'page-' + name));

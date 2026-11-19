@@ -40,13 +40,6 @@ function toast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 4600);
 }
-function formatValue(type, value) {
-  if (value === null) return '—';
-  return type === 'color'
-    ? `<span class="chip" style="background:${esc(value)}"></span>${esc(value)}`
-    : esc(value);
-}
-
 /* ---------- GitHub (public repositories, no sign-in) ---------- */
 const fileCache = new Map();
 class GitHubError extends Error {}
@@ -170,10 +163,6 @@ function render() {
   watch.className = 'watch ' + (live.error ? 'error' : live.checkedAt ? 'live' : '');
   $('watchText').textContent = live.error ? 'Not connected' : live.checkedAt ? `Watching · checked ${ago(new Date(live.checkedAt).toISOString())}` : 'Connecting';
 
-  $('sourceList').innerHTML = `
-    <a class="source" href="https://github.com/${esc(workspace.repo)}" target="_blank" rel="noopener noreferrer">${icon('github')}<span>${esc(name)}</span><span class="dot ${live.error ? 'bad' : 'good'}"></span></a>
-    ${workspace.figmaUrl ? `<a class="source" href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">${icon('figma')}<span>Figma file</span><span class="dot ${changes.length ? 'warn' : 'good'}"></span></a>` : `<span class="source muted">${icon('figma')}<span>No Figma file</span></span>`}`;
-
   renderDashboard(changes, commits);
   renderHistory();
   renderConnections();
@@ -207,30 +196,6 @@ function vennFor(c) {
 function formatCell(type, value) {
   if (value === null || value === undefined) return '<span class="none">—</span>';
   return type === 'color' ? `<span class="chip" style="background:${esc(value)}"></span>${esc(value)}` : esc(value);
-}
-
-function statCard({ tone, glyph, label, value, foot, badge }) {
-  return `<div class="card stat">
-    <div class="stat-top"><span class="chip-icon ${tone}">${icon(glyph)}</span><span class="stat-label">${label}</span>${badge || ''}</div>
-    <div class="stat-value">${value}</div>
-    <div class="stat-foot">${foot}</div>
-  </div>`;
-}
-
-function renderStats(changes, commits) {
-  const head = live.commits[0];
-  const tokens = Object.values(live.head || {});
-  const colors = tokens.filter((t) => t.type === 'color').length;
-  return `<div class="stats">
-    ${statCard({ tone: changes.length ? 'amber' : 'green', glyph: 'drift', label: 'Drifted tokens', value: changes.length,
-      foot: changes.length ? `Since Figma synced to <span class="mono">${esc(short(workspace.syncedSha))}</span>` : 'Figma matches the latest commit' })}
-    ${statCard({ tone: 'blue', glyph: 'commit', label: 'Commits ahead of Figma', value: commits.length,
-      foot: `${plural(live.commits.length, 'commit', 'commits')} touch <span class="mono">${esc(workspace.path)}</span>` })}
-    ${statCard({ tone: 'violet', glyph: 'layers', label: 'Tokens tracked', value: tokens.length,
-      foot: `${plural(colors, 'colour', 'colours')} · ${plural(tokens.length - colors, 'number', 'numbers')}` })}
-    ${statCard({ tone: 'green', glyph: 'clock', label: 'Last push', value: head?.date ? esc(ago(head.date)) : '—',
-      foot: head ? `by ${esc(head.author)}` : '' })}
-  </div>`;
 }
 
 /* Hero: every token across recent commits, as a dot matrix, with the Figma sync point marked. */
@@ -301,56 +266,73 @@ function previewCard() {
   </div>`;
 }
 
+function syncMark(drift) {
+  const offset = drift ? 16 + Math.min(drift, 4) * 4 : 6;
+  return `<svg class="sync-mark" viewBox="0 0 220 104" aria-hidden="true">
+    <g class="g-figma" style="transform:translateX(-${offset}px)"><circle class="c-figma" cx="110" cy="52" r="40" /><text x="62" y="56" class="vt" text-anchor="end">Figma</text></g>
+    <g class="g-code" style="transform:translateX(${offset}px)"><circle class="c-code" cx="110" cy="52" r="40" /><text x="158" y="56" class="vt code">Code</text></g>
+  </svg>`;
+}
+
 function renderDashboard(changes, commits) {
-  const dash = $('dashboard');
   const body = $('changesBody');
   const sub = $('changesSub');
   const actions = $('headActions');
-  if (live.loading) { sub.textContent = 'Checking GitHub'; dash.innerHTML = '<div class="skeleton"></div>'; body.innerHTML = ''; actions.innerHTML = ''; return; }
+  $('dashboard').innerHTML = '';
+  actions.innerHTML = '';
+  if (live.loading) { sub.textContent = 'Checking GitHub'; body.innerHTML = '<div class="skeleton"></div>'; renderTokensPage([]); return; }
   if (live.error) {
     sub.textContent = 'Could not check GitHub';
-    dash.innerHTML = `<div class="notice" role="alert">${esc(live.error)}</div>`;
-    body.innerHTML = ''; actions.innerHTML = '';
+    body.innerHTML = `<div class="notice" role="alert">${esc(live.error)}</div>`;
+    renderTokensPage([]);
     return;
   }
   const head = live.commits[0];
-  sub.innerHTML = `Design tokens from <span class="mono">${esc(workspace.repo)}</span> compared with Figma`;
-  actions.innerHTML = changes.length ? `<button class="button primary" id="applyButton" type="button">${icon('figma')}Apply with plugin</button>` : '';
-  if (changes.length) $('applyButton').addEventListener('click', () => openModal());
+  sub.innerHTML = `Watching <span class="mono">${esc(workspace.path)}</span> in ${esc(workspace.repo)}`;
 
-  dash.innerHTML = `${renderStats(changes, commits)}<div class="grid-2">${renderMap()}${renderInventory(changes)}</div>`;
+  const banner = changes.length
+    ? `<div class="card banner drift">
+        ${syncMark(changes.length)}
+        <div class="banner-copy">
+          <span class="pill warn">Needs review</span>
+          <h2>${changes.length === 1 ? '1 token changed' : changes.length + ' tokens changed'} in code since Figma was last updated</h2>
+          <p>${plural(commits.length, 'push', 'pushes')} since then, latest <span class="mono">${esc(short(head.sha))}</span> “${esc(head.message)}” ${head.date ? esc(ago(head.date)) : ''}</p>
+        </div>
+        <div class="banner-actions"><button class="button primary" id="applyButton" type="button">${icon('figma')}Apply in Figma</button></div>
+      </div>`
+    : `<div class="card banner sync">
+        ${syncMark(0)}
+        <div class="banner-copy">
+          <span class="pill good">In step</span>
+          <h2>Figma matches your code</h2>
+          <p>Every token matches <span class="mono">${esc(short(workspace.syncedSha))}</span>. Venn checks GitHub every minute while this page is open.</p>
+        </div>
+      </div>`;
 
   const kindLabel = (c) => (c.kind === 'changed' ? 'Changed' : c.kind === 'added' ? 'New in code' : 'Removed');
-  const lastTouch = (n) => { const hit = live.commits.find((c) => live.timeline.find((x) => x.commit.sha === c.sha)?.changed.has(n)); return hit ? `<span class="mono">${esc(short(hit.sha))}</span>` : '—'; };
+  const lastTouch = (n) => { const hit = live.commits.find((c) => live.timeline.find((x) => x.commit.sha === c.sha)?.changed.has(n)); return hit ? `<span class="commit-ref"><span class="mono">${esc(short(hit.sha))}</span><span class="msg">${esc(hit.message)}</span></span>` : '—'; };
   const driftTable = changes.length
     ? `<div class="card">
-        <div class="card-head"><div><h2>Drifted tokens</h2><p>Up to <span class="mono">${esc(short(head.sha))}</span> · ${esc(head.message)}</p></div><span class="pill warn">Needs review</span></div>
+        <div class="card-head"><div><h2>What changed</h2><p>Figma's value next to the value in code. Nothing in Figma moves until you apply it.</p></div></div>
         <div class="table-scroll"><table class="table">
-          <thead><tr><th>Token</th><th>Change</th><th>Figma</th><th>Code</th><th>Commit</th></tr></thead>
+          <thead><tr><th>Token</th><th>Figma</th><th>Code</th><th>Changed in</th></tr></thead>
           <tbody>${changes.map((c) => `<tr class="change">
-            <td><div class="token-cell">${vennFor(c)}<span class="mono">${esc(c.name)}</span></div></td>
-            <td><span class="pill ${c.kind === 'changed' ? 'neutral' : 'warn'}">${kindLabel(c)}</span></td>
+            <td><div class="token-cell">${vennFor(c)}<span><span class="mono">${esc(c.name)}</span><small>${kindLabel(c)}</small></span></div></td>
             <td class="num from">${formatCell(c.type, c.before)}</td>
             <td class="num to">${formatCell(c.type, c.after)}</td>
             <td>${lastTouch(c.name)}</td>
           </tr>`).join('')}</tbody>
         </table></div>
-        <div class="card-foot"><p>Figma changes only after you review each value in the plugin</p></div>
       </div>`
-    : `<div class="card empty">
-        <svg class="mark" aria-hidden="true"><use href="#i-mark" /></svg>
-        <h2>Figma matches your code</h2>
-        <p>No token has changed since the commit Figma was last synced to</p>
-        <span class="mono muted">${esc(short(workspace.syncedSha))}</span>
-      </div>`;
+    : '';
 
   const pendingSet = new Set(commits.map((c) => c.sha));
-  const statusFor = (c) => pendingSet.has(c.sha) ? '<span class="pill warn">Not in Figma</span>' : c.sha === workspace.syncedSha ? '<span class="pill good">Synced</span>' : '<span class="pill neutral">Before sync</span>';
+  const statusFor = (c) => pendingSet.has(c.sha) ? '<span class="pill warn">Not in Figma</span>' : c.sha === workspace.syncedSha ? '<span class="pill good">Figma is here</span>' : '<span class="pill neutral">Earlier</span>';
   const changedCount = (sha) => { const x = live.timeline.find((y) => y.commit.sha === sha); return x ? (x.first ? '—' : x.changed.size) : '—'; };
   const pushes = `<div class="card">
-      <div class="card-head"><div><h2>Recent pushes</h2><p>Commits that touched the token file</p></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">View on GitHub${icon('external')}</a></div>
+      <div class="card-head"><div><h2>Recent pushes</h2><p>Every commit that touched the token file</p></div><a class="button" href="https://github.com/${esc(workspace.repo)}/commits" target="_blank" rel="noopener noreferrer">GitHub${icon('external')}</a></div>
       <div class="table-scroll"><table class="table">
-        <thead><tr><th>Commit</th><th>Author</th><th>Pushed</th><th class="num">Tokens changed</th><th>Status</th></tr></thead>
+        <thead><tr><th>Commit</th><th>Author</th><th>Pushed</th><th class="num">Tokens</th><th>Status</th></tr></thead>
         <tbody>${live.commits.slice(0, 8).map((c) => `<tr class="${pendingSet.has(c.sha) ? 'commit-row' : 'commit-row-synced'}">
           <td><div class="commit-cell"><a class="mono sha" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(short(c.sha))}</a><span class="msg">${esc(c.message)}</span></div></td>
           <td>${esc(c.author)}</td>
@@ -361,7 +343,19 @@ function renderDashboard(changes, commits) {
       </table></div>
     </div>`;
 
-  body.innerHTML = `<div class="grid-2">${driftTable}${previewCard()}</div>${pushes}`;
+  body.innerHTML = `${banner}${driftTable}${pushes}`;
+  if (changes.length) $('applyButton').addEventListener('click', () => openModal());
+  renderTokensPage(changes);
+}
+
+function hasPreviewTokens() {
+  return !!(live.head && live.synced && (live.head['radius/button'] || live.head['action/primary']));
+}
+
+function renderTokensPage(changes) {
+  const root = $('tokensBody');
+  if (live.loading || live.error || !live.head) { root.innerHTML = live.error ? `<div class="notice">${esc(live.error)}</div>` : '<div class="skeleton"></div>'; return; }
+  root.innerHTML = `${renderMap()}<div class="grid-2 tokens-grid">${renderInventory(changes)}${hasPreviewTokens() ? previewCard() : ''}</div>`;
 }
 
 function renderHistory() {
@@ -390,13 +384,22 @@ function renderConnections() {
   $('connectionRows').innerHTML = `
     <div class="row"><span class="chip-icon neutral">${icon('github')}</span><div><strong>GitHub</strong><p><a href="https://github.com/${esc(workspace.repo)}" target="_blank" rel="noopener noreferrer">${esc(workspace.repo)}</a> · <span class="mono">${esc(workspace.path)}</span></p></div><span class="pill ${live.error ? 'warn' : 'good'}">${live.error ? 'Problem' : 'Connected'}</span></div>
     <div class="row"><span class="chip-icon violet">${icon('figma')}</span><div><strong>Figma file</strong><p>${figma}</p></div></div>
-    <div class="row"><span class="chip-icon blue">${icon('commit')}</span><div><strong>Last synced commit</strong><p><span class="mono">${esc(short(workspace.syncedSha))}</span></p></div></div>
+    <div class="row"><span class="chip-icon blue">${icon('commit')}</span><div><strong>Figma is up to date with</strong><p>Change this if your Figma file matches a different commit</p></div>
+      <select class="select" id="baselineSelect" aria-label="Commit Figma matches">${live.commits.map((c) => `<option value="${esc(c.sha)}" ${c.sha === workspace.syncedSha ? 'selected' : ''}>${esc(short(c.sha))} · ${esc(c.message.slice(0, 40))}</option>`).join('')}${live.commits.some((c) => c.sha === workspace.syncedSha) ? '' : `<option selected>${esc(short(workspace.syncedSha))}</option>`}</select></div>
     <div class="row"><span class="chip-icon green">${icon('plug')}</span><div><strong>Figma plugin</strong><p>Reads this repository and updates the open file after you review it</p></div><a class="button" href="figma-plugin.zip" download>${icon('download')}Download</a></div>`;
   $('openFigma').href = workspace.figmaUrl || 'https://www.figma.com';
+  const sel = $('baselineSelect');
+  if (sel) sel.addEventListener('change', async () => {
+    workspace.syncedSha = sel.value;
+    save(KEYS.workspace, workspace);
+    live.synced = await fetchTokens(workspace.repo, workspace.syncedSha, workspace.path).catch(() => null);
+    render();
+    toast('Venn now compares code with ' + short(sel.value));
+  });
 }
 
 /* ---------- navigation, modal ---------- */
-const PAGE_NAMES = { changes: 'Overview', history: 'History', connections: 'Connections' };
+const PAGE_NAMES = { changes: 'Overview', tokens: 'Tokens', history: 'History', connections: 'Connections' };
 function showPage(name) {
   if (!PAGE_NAMES[name]) return;
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('hidden', p.id !== 'page-' + name));
@@ -421,26 +424,62 @@ function validateReceipt(data) {
   if (Number.isNaN(new Date(data.appliedAt).getTime())) throw new Error('The receipt has no valid date.');
   return data;
 }
-async function importReceipt(file) {
-  if (!file) return;
-  if (file.size > 200000) throw new Error('Receipt file too large.');
-  const receipt = validateReceipt(JSON.parse(await file.text()));
+async function recordReceipt(data) {
+  const receipt = validateReceipt(data);
   receipts = [receipt, ...receipts.filter((r) => !(r.appliedAt === receipt.appliedAt && r.sourceSha === receipt.sourceSha))].slice(0, 50);
   save(KEYS.receipts, receipts);
   if (receipt.remainingDifferences > 0) {
     render();
-    toast(`Receipt added. ${receipt.remainingDifferences} other ${receipt.remainingDifferences === 1 ? 'difference was' : 'differences were'} left unapplied, so the sync point did not move.`);
+    toast(`Update recorded. ${receipt.remainingDifferences} other ${receipt.remainingDifferences === 1 ? 'difference was' : 'differences were'} left for later, so Figma still needs review.`);
     return;
   }
   workspace.syncedSha = receipt.sourceSha;
   save(KEYS.workspace, workspace);
   live.synced = await fetchTokens(workspace.repo, workspace.syncedSha, workspace.path).catch(() => null);
   render();
-  toast('Receipt added. Figma is now synced to ' + short(receipt.sourceSha));
+  toast(`Update recorded. Figma is in step with ${short(receipt.sourceSha)}`);
+}
+async function importReceipt(file) {
+  if (!file) return;
+  if (file.size > 200000) throw new Error('Receipt file too large.');
+  await recordReceipt(JSON.parse(await file.text()));
+}
+/* The plugin's "Record in Venn" opens this page with the receipt in the link: #receipt=<base64url JSON>. */
+async function receiptFromLink() {
+  if (!location.hash.startsWith('#receipt=')) return;
+  const encoded = location.hash.slice('#receipt='.length);
+  history.replaceState(null, '', location.pathname + location.search + '#changes');
+  if (!workspace) { toast('Connect your repository first, then record the update again from the plugin.'); return; }
+  try {
+    const json = decodeURIComponent(escape(atob(encoded.replace(/-/g, '+').replace(/_/g, '/'))));
+    await recordReceipt(JSON.parse(json));
+    showPage('changes');
+  } catch (err) {
+    toast(err instanceof SyntaxError ? 'That link did not contain a readable update.' : err.message);
+  }
 }
 
-/* ---------- onboarding ---------- */
-const setup = { repo: '', path: '', commits: [], figmaUrl: '', baseline: null };
+/* ---------- intro ---------- */
+const INTRO_KEY = 'venn.intro.v1';
+let slide = 0;
+function showSlide(n) {
+  slide = Math.max(0, Math.min(2, n));
+  document.querySelectorAll('.slide').forEach((s) => s.classList.toggle('hidden', Number(s.dataset.slide) !== slide));
+  document.querySelectorAll('#introDots button').forEach((d) => d.classList.toggle('active', Number(d.dataset.to) === slide));
+  $('introBack').classList.toggle('hidden', slide === 0);
+  $('introNext').textContent = slide === 2 ? 'Connect GitHub' : 'Next';
+  $('intro').dataset.slide = String(slide);
+}
+function leaveIntro() {
+  save(INTRO_KEY, true);
+  $('intro').classList.add('hidden');
+  $('onboarding').classList.remove('hidden');
+  setStep(1);
+  $('repoInput').focus();
+}
+
+/* ---------- onboarding: GitHub, then Figma ---------- */
+const setup = { repo: '', path: '', commits: [], figmaUrl: '' };
 function setStep(n) {
   document.querySelectorAll('.step').forEach((s) => s.classList.toggle('hidden', Number(s.dataset.step) !== n));
   document.querySelectorAll('#stepper li').forEach((li) => {
@@ -480,22 +519,10 @@ function submitFigma(skip) {
   }
   fieldError('figmaError', '');
   setup.figmaUrl = skip ? '' : url;
-  renderBaselinePicker();
-  setStep(3);
-}
-function renderBaselinePicker() {
-  setup.baseline = setup.commits[Math.min(1, setup.commits.length - 1)].sha;
-  const root = $('baselinePicker');
-  root.innerHTML = setup.commits.map((c) => `<button type="button" class="commit-option" role="radio" aria-checked="${c.sha === setup.baseline}" data-sha="${esc(c.sha)}">
-      <span class="radio"></span><span><strong>${esc(c.message)}</strong><small>${esc(c.author)} · ${c.date ? esc(ago(c.date)) : ''}</small></span><span class="sha">${esc(short(c.sha))}</span>
-    </button>`).join('');
-  root.querySelectorAll('.commit-option').forEach((b) => b.addEventListener('click', () => {
-    setup.baseline = b.dataset.sha;
-    root.querySelectorAll('.commit-option').forEach((o) => o.setAttribute('aria-checked', String(o === b)));
-  }));
-}
-function finishSetup() {
-  workspace = { repo: setup.repo, path: setup.path, figmaUrl: setup.figmaUrl, syncedSha: setup.baseline };
+  // Start from the commit before the latest, so the latest push shows up as something to review.
+  // It can be changed later on Connections.
+  const start = setup.commits[Math.min(1, setup.commits.length - 1)].sha;
+  workspace = { repo: setup.repo, path: setup.path, figmaUrl: setup.figmaUrl, syncedSha: start };
   save(KEYS.workspace, workspace);
   boot();
 }
@@ -503,20 +530,24 @@ function finishSetup() {
 /* ---------- boot ---------- */
 let pollTimer = null;
 function boot() {
-  $('onboarding').classList.toggle('hidden', !!workspace);
+  const params = new URLSearchParams(location.search);
+  const showIntro = !workspace && !load(INTRO_KEY, false) && !params.get('repo');
+  $('intro').classList.toggle('hidden', !showIntro);
+  $('onboarding').classList.toggle('hidden', !!workspace || showIntro);
   $('app').classList.toggle('hidden', !workspace);
   clearInterval(pollTimer);
   if (!workspace) {
-    const params = new URLSearchParams(location.search);
     $('repoInput').value = params.get('repo') || '';
     $('pathInput').value = params.get('path') || 'tokens.json';
-    setStep(1);
+    if (showIntro) showSlide(0); else setStep(1);
+    if (location.hash.startsWith('#receipt=')) receiptFromLink();
     return;
   }
   live.loading = true;
   render();
-  showPage(PAGE_NAMES[location.hash.slice(1)] ? location.hash.slice(1) : 'changes');
-  refresh({ manual: true });
+  const hash = location.hash.slice(1);
+  showPage(PAGE_NAMES[hash] ? hash : 'changes');
+  refresh({ manual: true }).then(receiptFromLink);
   pollTimer = setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
 }
 
@@ -527,7 +558,13 @@ $('menuButton').addEventListener('click', () => { $('app').classList.add('menu-o
 $('scrim').addEventListener('click', closeMenu);
 $('closeModal').addEventListener('click', closeModal);
 $('applyModal').addEventListener('click', (e) => { if (e.target === $('applyModal')) closeModal(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeMenu(); } });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeModal(); closeMenu(); }
+  if (!$('intro').classList.contains('hidden')) {
+    if (e.key === 'ArrowRight') { if (slide === 2) leaveIntro(); else showSlide(slide + 1); }
+    if (e.key === 'ArrowLeft') showSlide(slide - 1);
+  }
+});
 $('checkNow').addEventListener('click', async () => {
   const btn = $('checkNow'); btn.disabled = true;
   await refresh({ manual: true });
@@ -542,19 +579,22 @@ $('receiptFile').addEventListener('change', async (e) => {
   try { await importReceipt(e.target.files[0]); } catch (err) { toast(err.message); } finally { e.target.value = ''; }
 });
 $('resetWorkspace').addEventListener('click', () => {
-  if (!confirm('Disconnect this repository? Your imported receipts stay in this browser.')) return;
+  if (!confirm('Disconnect this repository? Your recorded updates stay in this browser.')) return;
   workspace = null; save(KEYS.workspace, null); fileCache.clear(); commitsEtag = null;
-  Object.assign(live, { commits: [], head: null, synced: null, error: null, checkedAt: null, loading: true });
+  Object.assign(live, { commits: [], head: null, synced: null, timeline: [], error: null, checkedAt: null, loading: true });
   history.replaceState(null, '', location.pathname);
   boot();
 });
+$('skipIntro').addEventListener('click', leaveIntro);
+$('introNext').addEventListener('click', () => { if (slide === 2) leaveIntro(); else showSlide(slide + 1); });
+$('introBack').addEventListener('click', () => showSlide(slide - 1));
+document.querySelectorAll('#introDots button').forEach((d) => d.addEventListener('click', () => showSlide(Number(d.dataset.to))));
 $('repoNext').addEventListener('click', submitRepo);
 $('useSample').addEventListener('click', () => { $('repoInput').value = SAMPLE.repo; $('pathInput').value = SAMPLE.path; submitRepo(); });
 ['repoInput', 'pathInput'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') submitRepo(); }));
 $('figmaNext').addEventListener('click', () => submitFigma(false));
 $('figmaSkip').addEventListener('click', () => submitFigma(true));
-$('baselineBack').addEventListener('click', () => setStep(2));
-$('finishSetup').addEventListener('click', finishSetup);
+window.addEventListener('hashchange', () => { if (location.hash.startsWith('#receipt=')) receiptFromLink(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && workspace) refresh(); });
 
 boot();

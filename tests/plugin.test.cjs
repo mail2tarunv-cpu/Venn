@@ -30,6 +30,7 @@ function setup({ radius = 2, head = SHA, alias = false } = {}) {
   const storage = {};
   const figma = {
     fileKey: 'FILE', root: { name: 'Test file' }, currentUser: { name: 'Test designer' },
+    opened: [], openExternal(u) { this.opened.push(u); },
     showUI() {}, ui: { postMessage: (m) => messages.push(m), onmessage: null },
     clientStorage: { getAsync: async (k) => storage[k], setAsync: async (k, v) => { storage[k] = v; } },
     variables: {
@@ -47,7 +48,7 @@ function setup({ radius = 2, head = SHA, alias = false } = {}) {
   vm.createContext(ctx);
   vm.runInContext(code, ctx);
   return {
-    messages, writes, vars,
+    messages, writes, vars, figma,
     moveHead: (s) => { headSha = s; },
     async send(m) { await figma.ui.onmessage(m); return messages.at(-1); },
   };
@@ -114,5 +115,12 @@ function setup({ radius = 2, head = SHA, alias = false } = {}) {
   assert.equal(failed.type, 'error'); assert.match(failed.message, /undone/);
   assert.equal(e.vars[0].valuesByMode.mode, 2, 'radius restored');
 
-  console.log('PASS plugin: read-only check, statuses, consent, selective apply, colour read-back, new-commit guard, conflict guard, alias guard, rollback');
+  // Record in Venn only opens the Venn site with a receipt; anything else is refused.
+  const f = setup();
+  await f.send({ type: 'open', url: 'https://venn-peach-eight.vercel.app/#receipt=abc' });
+  assert.deepEqual(f.figma.opened, ['https://venn-peach-eight.vercel.app/#receipt=abc']);
+  assert.equal((await f.send({ type: 'open', url: 'https://evil.example/#receipt=abc' })).type, 'error');
+  assert.equal(f.figma.opened.length, 1);
+
+  console.log('PASS plugin: read-only check, statuses, consent, selective apply, colour read-back, new-commit guard, conflict guard, alias guard, rollback, record-link guard');
 })().catch((err) => { console.error(err); process.exit(1); });

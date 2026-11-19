@@ -38,6 +38,13 @@
   select { font-family: var(--sans); }
   input:not([type=checkbox]):focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
 
+  .summary-line { display: flex; align-items: baseline; gap: 8px; padding: 12px 14px; }
+  .summary-line strong { font-size: 22px; line-height: 26px; font-weight: 500; letter-spacing: -.02em; }
+  .summary-line.warn strong { color: var(--warn); }
+  .summary-line span { color: var(--ink-2); }
+  .more { width: 100%; height: 38px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink-2); font: 500 12px var(--sans); cursor: pointer; }
+  .more:hover { background: #fcfcfc; color: var(--ink); }
+  #moreRows .row { opacity: .85; }
   .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; }
   .stat { padding: 12px 14px; display: grid; gap: 2px; }
   .stat + .stat { border-left: 1px solid var(--line); }
@@ -114,18 +121,16 @@
     <button class="b" id="save" type="button">Save and check</button>
   </div>
 
-  <div class="card">
-    <div class="stats">
-      <div class="stat warn" id="statDiffer"><small>To review</small><strong id="nDiffer">–</strong></div>
-      <div class="stat"><small>Matching</small><strong id="nMatch">–</strong></div>
-      <div class="stat"><small>Not applicable</small><strong id="nOther">–</strong></div>
-    </div>
-    <div class="commit"><span class="mono" id="sha">———————</span><span class="commit-msg" id="sub">Checking GitHub and this file</span></div>
+  <div class="card summary-card">
+    <div class="summary-line"><strong id="nDiffer">–</strong><span id="summaryText">Checking GitHub and this file</span></div>
+    <div class="commit"><span class="mono" id="sha">———————</span><span class="commit-msg" id="sub"></span></div>
   </div>
 
   <div class="card">
-    <div class="list-head"><strong id="summary">Differences</strong><span id="tagWrap"><span class="pill neutral" id="tag">Checking</span></span></div>
+    <div class="list-head"><strong id="summary">Differences</strong><span id="tagWrap"><span class="pill neutral">Checking</span></span></div>
     <div id="rows"></div>
+    <button class="more hidden" id="moreToggle" type="button"></button>
+    <div id="moreRows" class="hidden"></div>
   </div>
 
   <p class="msg hidden" id="msg" role="status"></p>
@@ -134,18 +139,22 @@
 
 <footer>
   <label class="consent off" id="consentWrap"><input type="checkbox" id="consent" disabled><span>I reviewed the selected changes and want to update this file</span></label>
-  <div class="actions">
+  <div class="actions" id="applyRow">
     <button class="b" id="refresh" type="button" title="Check again"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>Check</button>
     <button class="b primary" id="apply" type="button" disabled>Apply in Figma</button>
   </div>
-  <div class="actions hidden" id="receiptRow"><button class="b primary" id="download" type="button"><svg viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>Download receipt</button></div>
+  <div class="actions hidden" id="receiptRow">
+    <button class="b" id="checkAgain" type="button" title="Check again"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+    <button class="b" id="download" type="button" title="Download receipt"><svg viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>File</button>
+    <button class="b primary" id="record" type="button"><svg viewBox="0 0 28 18"><circle cx="10" cy="9" r="7"/><circle cx="18" cy="9" r="7"/></svg>Record in Venn</button>
+  </div>
 </footer>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const post = (msg) => parent.postMessage({ pluginMessage: msg }, '*');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let rows = [], receipt = null;
+let rows = [], receipt = null, site = '';
 
 const fmt = (type, v) => v === undefined || v === null ? '—' : type === 'color' ? `<span class="chip" style="background:${esc(v)}"></span>${esc(v)}` : esc(v);
 const LABEL = { match: 'Matches code', missing: 'Not in Figma, not created', type: 'Different type in Figma', alias: 'Alias in Figma, left alone', unsupported: 'Unsupported value in Figma' };
@@ -180,10 +189,12 @@ function render(data) {
   rows = data.rows;
   const differs = rows.filter((r) => r.status === 'differs');
   const matches = rows.filter((r) => r.status === 'match');
+  const others = rows.length - differs.length - matches.length;
   $('nDiffer').textContent = differs.length;
-  $('nMatch').textContent = matches.length;
-  $('nOther').textContent = rows.length - differs.length - matches.length;
-  $('statDiffer').classList.toggle('warn', differs.length > 0);
+  $('nDiffer').parentElement.classList.toggle('warn', differs.length > 0);
+  $('summaryText').textContent = differs.length
+    ? `${differs.length === 1 ? 'value differs' : 'values differ'} from code · ${matches.length} already match`
+    : `Figma matches code · ${matches.length} ${matches.length === 1 ? 'variable' : 'variables'} checked`;
   $('sha').textContent = data.sha.slice(0, 7);
   $('sub').textContent = data.message;
   $('sourceLabel').textContent = `${data.collection}`;
@@ -194,10 +205,20 @@ function render(data) {
     : `<span class="pill good">Up to date</span>`;
   const order = { differs: 0, missing: 1, type: 1, alias: 1, unsupported: 1, match: 2 };
   const sorted = rows.slice().sort((a, b) => order[a.status] - order[b.status]);
-  $('rows').innerHTML = sorted.length ? sorted.map((r) => r.status === 'differs'
+  const rowHtml = (r) => r.status === 'differs'
     ? `<label class="row"><input type="checkbox" class="pick" value="${esc(r.name)}">${venn(r)}<span class="name"><span class="mono">${esc(r.name)}</span><small>Figma differs from code</small></span><span class="vals"><span class="from">${fmt(r.type, r.figma)}</span><span class="arrow">→</span><span class="to">${fmt(r.type, r.code)}</span></span></label>`
-    : `<div class="row muted"><span></span><span></span><span class="name"><span class="mono">${esc(r.name)}</span><small>${esc(LABEL[r.status])}</small></span><span class="vals">${r.status === 'match' ? fmt(r.type, r.figma) : `<span class="pill neutral">${r.status === 'missing' ? 'Missing' : 'Skipped'}</span>`}</span></div>`).join('')
-    : `<div class="empty-row">No colour or number tokens found in this file</div>`;
+    : `<div class="row muted"><span></span><span></span><span class="name"><span class="mono">${esc(r.name)}</span><small>${esc(LABEL[r.status])}</small></span><span class="vals">${r.status === 'match' ? fmt(r.type, r.figma) : `<span class="pill neutral">${r.status === 'missing' ? 'Missing' : 'Skipped'}</span>`}</span></div>`;
+  // Differences and anything needing attention are shown; matching variables fold away.
+  const shown = sorted.filter((r) => r.status !== 'match');
+  const folded = sorted.filter((r) => r.status === 'match');
+  $('rows').innerHTML = shown.length ? shown.map(rowHtml).join('') : (folded.length ? '' : `<div class="empty-row">No colour or number tokens found in this file</div>`);
+  $('moreRows').innerHTML = folded.map(rowHtml).join('');
+  const toggle = $('moreToggle');
+  const open = !shown.length;
+  $('moreRows').classList.toggle('hidden', !open);
+  toggle.classList.toggle('hidden', !folded.length || open);
+  toggle.textContent = `Show ${folded.length} matching`;
+  toggle.onclick = () => { const hidden = $('moreRows').classList.toggle('hidden'); toggle.textContent = hidden ? `Show ${folded.length} matching` : 'Hide matching'; };
   const sel = $('collection');
   sel.innerHTML = '<option value="">First collection</option>' + data.collections.map((c) => `<option ${c === data.collection ? 'selected' : ''}>${esc(c)}</option>`).join('');
   document.querySelectorAll('.pick').forEach((i) => i.addEventListener('change', syncButtons));
@@ -209,7 +230,9 @@ function check(config) { $('apply').disabled = true; message('Checking GitHub an
 
 $('sourceButton').onclick = () => $('settings').classList.toggle('hidden');
 $('consent').onchange = syncButtons;
-$('refresh').onclick = () => check({ repo: $('repo').value, path: $('path').value, collection: $('collection').value });
+function resetAfterRecord() { $('applyRow').classList.remove('hidden'); $('consentWrap').classList.remove('hidden'); $('receiptRow').classList.add('hidden'); }
+$('refresh').onclick = () => resetAfterRecord() || check({ repo: $('repo').value, path: $('path').value, collection: $('collection').value });
+$('checkAgain').onclick = () => $('refresh').onclick();
 $('save').onclick = () => { $('settings').classList.add('hidden'); $('refresh').onclick(); };
 $('apply').onclick = () => { const names = selected(); $('apply').disabled = true; message('Applying and reading values back…'); post({ type: 'apply', names, confirmed: $('consent').checked }); };
 $('download').onclick = () => {
@@ -219,14 +242,24 @@ $('download').onclick = () => {
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
+$('record').onclick = () => {
+  if (!receipt || !site) return;
+  const json = JSON.stringify(receipt);
+  const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  post({ type: 'open', url: site + '#receipt=' + b64 });
+  message('Opening Venn in your browser…', 'ok');
+};
+
 window.onmessage = (e) => {
   const m = e.data && e.data.pluginMessage; if (!m) return;
-  if (m.type === 'config') { $('repo').value = m.config.repo; $('path').value = m.config.path; }
+  if (m.type === 'config') { $('repo').value = m.config.repo; $('path').value = m.config.path; site = m.site; }
   if (m.type === 'checked') { render(m); if (!receipt) $('msg').classList.add('hidden'); }
   if (m.type === 'applied') {
     receipt = m.receipt;
     $('receiptRow').classList.remove('hidden');
-    message(`Updated ${receipt.changes.length} ${receipt.changes.length === 1 ? 'variable' : 'variables'}. Figma confirmed every value. Download the receipt and import it in Venn.`, 'ok');
+    $('applyRow').classList.add('hidden');
+    $('consentWrap').classList.add('hidden');
+    message(`Updated ${receipt.changes.length} ${receipt.changes.length === 1 ? 'variable' : 'variables'} and Figma confirmed every value. Press Record in Venn to update your dashboard.`, 'ok');
   }
   if (m.type === 'error') { message(m.message, 'error'); $('sourceButton').classList.add('error'); syncButtons(); }
 };

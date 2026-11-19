@@ -6,6 +6,7 @@ figma.showUI(__html__, { width: 460, height: 640, themeColors: true });
 
 const DEFAULTS = { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json', collection: '' };
 const RECEIPT_SCHEMA = 'venn/receipt-v2';
+const VENN_SITE = 'https://venn-peach-eight.vercel.app/';
 let state = null;
 
 const send = (type, data = {}) => figma.ui.postMessage({ type, ...data });
@@ -157,12 +158,17 @@ figma.ui.onmessage = async (msg) => {
       let saved = null;
       try { saved = await figma.clientStorage.getAsync('venn.config'); } catch (e) { /* no saved settings */ }
       const config = Object.assign({}, DEFAULTS, saved || {});
-      send('config', { config });
+      send('config', { config, site: VENN_SITE });
       await check(config);
     } else if (msg.type === 'check') {
       const config = { repo: String(msg.config.repo).trim(), path: String(msg.config.path).trim(), collection: String(msg.config.collection || '') };
       try { await figma.clientStorage.setAsync('venn.config', config); } catch (e) { /* settings just won't persist */ }
       await check(config);
+    } else if (msg.type === 'open') {
+      // "Record in Venn": only ever opens the Venn site, with the receipt in the link.
+      const url = String(msg.url || '');
+      if (!url.startsWith(VENN_SITE + '#receipt=')) throw Error('Venn could not open that link.');
+      figma.openExternal(url);
     } else if (msg.type === 'apply') {
       await apply(Array.isArray(msg.names) ? msg.names : [], msg.confirmed === true);
     }

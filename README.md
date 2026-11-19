@@ -28,6 +28,10 @@ Visit http://localhost:8000. The published demo is at https://venn-peach-eight.v
 - Receipts are local and are not authoritative audit logs; the plugin has not yet completed a live Figma Desktop verification in this migration.
 - V0 is intentionally separate from the **`automation-prototype`** branch, which preserves the experimental V8 backend, GitHub webhook logic, Supabase schema, and queue worker. V8 is not an activated hosted production service.
 
+## Optional automation layer (not active until configured)
+
+`api/index.js` is a serverless backend (GitHub sign-in, signed webhooks, change classification, Supabase persistence, plugin pairing). `GET /api/status` reports `ready:false` until the variables in `.env.example` are set and `supabase/schema.sql` is applied, and every action fails closed. The V0 static experience does not depend on it. The queue-mode Figma plugin from `automation-prototype` is not yet merged.
+
 ## Roadmap
 
 1. GitHub App and verified webhook ingestion; durable change queue.

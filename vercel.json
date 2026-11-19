@@ -4,9 +4,26 @@
     {
       "source": "/source.json",
       "headers": [
-        {"key": "Access-Control-Allow-Origin", "value": "*"},
-        {"key": "Cache-Control", "value": "no-store"}
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index"
     }
   ]
 }

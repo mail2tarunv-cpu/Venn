@@ -103,22 +103,20 @@ with sync_playwright() as p:
         page.locator("#figmaNext").click()
 
         # Overview: a banner says what happened, one token to review, starting from the commit before the latest.
-        page.locator(".hero-figure").wait_for()
-        assert page.locator(".hero-figure .big").inner_text() == "1"
-        assert "token changed in code since the last sync" in page.locator(".hero-figure").inner_text()
+        page.locator(".banner").wait_for()
+        assert "1 token changed since Figma was last updated" in page.locator(".banner h2").inner_text()
         assert "assumed" in page.locator(".sync-note").inner_text(), "the starting point is labelled as an assumption"
-        assert "assumed" in page.locator(".tl-band").inner_text(), "the timeline marks the sync point"
         assert page.locator(".change").count() == 1
-        assert page.locator(".change").get_attribute("title").startswith("radius/button")
+        assert "radius/button" in page.locator(".change").inner_text()
+        assert "Changed" in page.locator(".group-row").first.inner_text(), "changes are grouped by kind"
         assert page.title() == "(1) Venn"
         assert page.locator(".commit-row").count() == 1, "one push waiting"
-        assert "radius/button" in page.locator(".commit-row .diff").inner_text(), "the push lists what it changed"
-        # Hero: the team's own button, drawn from the last sync and from code.
-        radii = page.locator(".wipe .spec-btn").evaluate_all("els => els.map(e => getComputedStyle(e).borderTopLeftRadius)")
-        assert radii == ["2px", "12px"], radii
-        page.locator("#wipeRange").fill("20")
-        assert page.locator(".wipe").evaluate("e => e.style.getPropertyValue('--x')") == "20%"
+        # A push opens to show what it changed.
+        assert page.locator(".push-detail").first.is_hidden()
+        page.locator(".commit-row").first.click()
+        assert "radius/button" in page.locator(".push-detail").first.inner_text()
         assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()").lower() == "#008254", "accent follows the team's primary colour"
+        assert page.locator("#topAvatar").count() == 0, "no account avatar without an account"
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"changes overflow {width}"
         page.screenshot(path=str(shots / f"changes-{width}.png"), full_page=True)
 

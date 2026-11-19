@@ -1,42 +1,36 @@
 # Venn
 
-**Venn keeps code and design aligned.**
+**Venn keeps Figma in step with your design tokens on GitHub.**
 
-This repository holds the focused V0 demonstration and its Figma companion plugin. It explores how a code-first design team can review a versioned component change, compare it with the matching Figma variable, and approve a guarded update.
+Push a change to your token file, Venn shows what no longer matches Figma, and the Venn Figma plugin applies the changes you review, reads every value back, and gives you a receipt.
 
-## Run locally
+Live: https://venn-peach-eight.vercel.app · Sample tokens: https://github.com/mail2tarunv-cpu/penny-tokens
 
-Open `index.html` in a local static server, for example:
+## How it works
+
+1. **Connect GitHub.** Enter a public repository and the path of a W3C design-token JSON file (colour and number tokens).
+2. **Connect Figma.** Paste your file link and install the plugin (`figma-plugin.zip`, then Plugins, Development, Import plugin from manifest in Figma Desktop).
+3. **Pick a baseline.** Choose the commit your Figma file matches today.
+4. **Push.** Venn checks GitHub every 45 seconds while open (and on demand), lists every token that changed since the last sync, and the commits that changed them. The tab title and an optional browser notification tell you when a push arrives.
+5. **Apply.** In Figma, run Venn. It compares the latest commit with the file's variables, you tick what you reviewed, and it writes only those, reads them back, and undoes the whole run if any value does not match.
+6. **Record.** Import the plugin's receipt on History. Venn marks Figma as synced to that commit.
+
+## Honest boundaries
+
+- Public repositories only. Private repositories need the GitHub App and backend (`api/`), which are not configured yet.
+- Figma plugins cannot run in the background, and Figma's REST API only allows variable writes on Enterprise plans, so applying is one click in the plugin.
+- Variables are matched by name (`radius/button` token ↔ `radius/button` variable) in one collection, default mode. Missing variables are reported, never created. Aliases are reported, never overwritten.
+- Workspace and history live in this browser. Receipts record the plugin's read-back, not an independent audit.
+
+## Optional backend
+
+`api/index.js` is a serverless backend (GitHub sign-in, signed webhooks, Supabase persistence). `GET /api/status` reports `ready:false` until `.env.example` values are set and `supabase/schema.sql` is applied; every action fails closed. The web app does not depend on it.
+
+## Develop
 
 ```sh
-python3 -m http.server 8000
+python3 -m http.server 8000   # then open http://localhost:8000
+npm test                      # tokens, plugin, backend and browser tests (browser test needs Python Playwright)
 ```
 
-Visit http://localhost:8000. The published demo is at https://venn-peach-eight.vercel.app.
-
-## Demonstration
-
-- View the mapped Penny primary-button radius change: 2px in Figma vs. 12px in the published code snapshot.
-- Expand code evidence, open Connections, and inspect locally imported Figma plugin receipts in History.
-- In the separate [Penny test file](https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha), import `figma-plugin/manifest.json` as a Figma development plugin.
-- Review the actual Figma variable value in the plugin, approve an update, and export the resulting read-back receipt.
-
-## Current boundaries
-
-- V0 reads a versioned public snapshot; it does not monitor GitHub webhooks or read a Figma document from the website.
-- The Figma plugin must be opened and run by a user. It refuses to write if the file, variable, component binding, or expected value differs.
-- Receipts are local and are not authoritative audit logs; the plugin has not yet completed a live Figma Desktop verification in this migration.
-- V0 is intentionally separate from the **`automation-prototype`** branch, which preserves the experimental V8 backend, GitHub webhook logic, Supabase schema, and queue worker. V8 is not an activated hosted production service.
-
-## Optional automation layer (not active until configured)
-
-`api/index.js` is a serverless backend (GitHub sign-in, signed webhooks, change classification, Supabase persistence, plugin pairing). `GET /api/status` reports `ready:false` until the variables in `.env.example` are set and `supabase/schema.sql` is applied, and every action fails closed. The V0 static experience does not depend on it. The queue-mode Figma plugin from `automation-prototype` is not yet merged.
-
-## Roadmap
-
-1. GitHub App and verified webhook ingestion; durable change queue.
-2. Stable code/Figma mappings, value and conflict checks, token updates with explicit safety boundaries.
-3. Controlled component/variant regeneration, visual verification, rollback.
-4. Authenticated team review, shared history, and permissions.
-
-This independent prototype is not endorsed by Figma, GitHub, Playlab, or NerdWallet.
+Independent prototype. Not affiliated with Figma or GitHub.

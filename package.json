@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test:plugin": "node tests/plugin.test.cjs",
+    "test:backend": "node tests/backend.test.cjs",
     "test:browser": "python3 tests/test_browser.py",
-    "test": "npm run test:plugin && npm run test:browser"
+    "test": "npm run test:plugin && npm run test:backend && npm run test:browser"
   }
 }

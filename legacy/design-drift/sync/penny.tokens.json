@@ -1,0 +1,18 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "system": "Penny — NerdWallet Design System",
+  "source": "Design Drift selected-component test",
+  "version": "2026-11-18.2",
+  "figmaFile": "nfPIHqVPJv4OJ5yOavc1ha",
+  "tokens": {
+    "action/primary": { "type": "color", "value": "#008254", "description": "Penny green/600; inspected from the original Penny file" },
+    "text/on-brand": { "type": "color", "value": "#FFFFFF" },
+    "text/primary": { "type": "color", "value": "#202020" },
+    "background/page": { "type": "color", "value": "#FFFFFF" },
+    "radius/button": { "type": "number", "value": 12, "description": "Proposed code change from the original Penny button radius of 2px; sync test" },
+    "spacing/component": { "type": "number", "value": 12 }
+  },
+  "mappings": {
+    "Penny / Button / Primary": { "figmaNodeId": "1:9", "code": "examples/penny-button.css", "tokens": ["action/primary", "radius/button"] }
+  }
+}

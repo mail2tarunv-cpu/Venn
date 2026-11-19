@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const events=[];let currentRadius=2;
+const vars=[{id:'VariableID:1:7',name:'radius/button',variableCollectionId:'coll1',resolvedType:'FLOAT',valuesByMode:{'mode1':2},setValueForMode(id,v){this.valuesByMode[id]=v;currentRadius=v;}},{id:'VariableID:1:3',name:'action/primary',variableCollectionId:'coll1',resolvedType:'COLOR',valuesByMode:{'mode1':{r:0,g:0.50980392,b:0.32941176,a:1}},setValueForMode(id,v){this.valuesByMode[id]=v;}}];
+const figma={fileKey:'nfPIHqVPJv4OJ5yOavc1ha',root:{name:'Penny sync lab'},currentUser:{name:'Test Designer',id:'test-123'},showUI(){},notify(){},ui:{postMessage:e=>events.push(e),onmessage:null},variables:{getLocalVariableCollectionsAsync:async()=>[{id:'coll1',name:'Penny / Test tokens',defaultModeId:'mode1'}],getLocalVariablesAsync:async()=>vars},getNodeByIdAsync:async()=>null,loadFontAsync:async()=>{}};
+const ctx={figma,__html__:'',console,fetch:async()=>{throw Error('No internet in test')},TextDecoder,Uint8Array,Date,Error,Promise,Math};vm.createContext(ctx);vm.runInContext(fs.readFileSync('/mnt/data/design-drift-v8/figma-plugin/code.js','utf8'),ctx);
+(async()=>{
+ await figma.ui.onmessage({type:'snapshot',collection:'Penny / Test tokens'});const s=events.at(-1);assert.equal(s.type,'snapshot');assert.equal(s.data.tokens['radius/button'].value,2);assert.equal(s.data.actor.name,'Test Designer');
+ const m={schema:'design-drift/manifest-v1',id:'dd-verify-1',createdAt:new Date().toISOString(),source:{repository:'example/repo',branch:'main'},target:{figmaFileKey:figma.fileKey,collectionName:'Penny / Test tokens'},operations:[{kind:'variable',name:'radius/button',type:'number',expected:2,value:12}]};
+ await figma.ui.onmessage({type:'manifest',data:m});assert.equal(events.at(-1).checks[0].status,'ready');await figma.ui.onmessage({type:'apply',manifestId:m.id,confirmed:true});const applied=events.at(-1);assert.equal(applied.type,'applied');assert.equal(applied.data.operations[0].before,2);assert.equal(currentRadius,12);
+ // Stale update must never overwrite current value.
+ await figma.ui.onmessage({type:'manifest',data:m});assert.equal(events.at(-1).checks[0].status,'conflict');await figma.ui.onmessage({type:'apply',manifestId:m.id,confirmed:true});assert.equal(events.at(-1).type,'error');assert.equal(currentRadius,12);
+ const colorM={...m,id:'dd-color-1',operations:[{kind:'variable',name:'action/primary',type:'color',expected:'#008254',value:'#167B52'}]};await figma.ui.onmessage({type:'manifest',data:colorM});assert.equal(events.at(-1).checks[0].status,'ready');await figma.ui.onmessage({type:'apply',manifestId:colorM.id,confirmed:true});assert.equal(events.at(-1).type,'applied');assert.equal(vars[1].valuesByMode.mode1.a,1);
+ console.log('PASS: snapshot export, mapped update, receipt actor, stale conflict rejection, color sync.');
+})().catch(e=>{console.error(e);process.exit(1)});

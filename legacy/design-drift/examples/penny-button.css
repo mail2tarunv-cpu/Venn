@@ -1,0 +1,15 @@
+/* Penny-derived, independent synchronization test. Not the official NerdWallet code. */
+:root {
+  --penny-action-primary: #008254;
+  --penny-button-radius: 12px;
+  --penny-button-height: 44px;
+}
+.penny-button {
+  background: var(--penny-action-primary);
+  color: white;
+  border: none;
+  border-radius: var(--penny-button-radius);
+  min-height: var(--penny-button-height);
+  padding: 0 20px;
+  font: 600 14px/1.25 Inter, system-ui, sans-serif;
+}

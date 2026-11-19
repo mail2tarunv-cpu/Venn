@@ -1,0 +1,16 @@
+{
+  "name": "Design Drift Sync \u2014 Development",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma"
+  ],
+  "networkAccess": {
+    "allowedDomains": [
+      "https://api.github.com",
+      "https://design-drift-tarun.vercel.app"
+    ],
+    "reasoning": "Read GitHub during explicit token proposals and exchange signed plugin queue messages with the paired Design Drift backend."
+  }
+}

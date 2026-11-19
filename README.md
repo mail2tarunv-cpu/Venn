@@ -12,7 +12,7 @@ Open `index.html` in a local static server, for example:
 python3 -m http.server 8000
 ```
 
-Visit http://localhost:8000. The published demo is currently at https://design-drift-tarun.vercel.app/ while the deployment transitions to Venn.
+Visit http://localhost:8000. The published demo is at https://venn-peach-eight.vercel.app.
 
 ## Demonstration
 

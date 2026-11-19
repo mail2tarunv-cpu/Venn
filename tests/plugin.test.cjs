@@ -22,5 +22,6 @@ function setup({radius=2,fileKey=source.target.figmaFileKey,binding=true,revisio
  const d=setup({binding:false});assert.equal((await d.send({type:'check'})).type,'error');assert.deepEqual(d.writes,[]);
  const e=setup();await e.send({type:'check'});e.setRevision('superseded');assert.equal((await e.send({type:'apply',confirmed:true})).type,'error');assert.deepEqual(e.writes,[]);
  const f=setup();assert.equal((await f.send({type:'apply',confirmed:true})).type,'error');assert.deepEqual(f.writes,[]);
+ {const c=setup({fileKey:null});assert.equal((await c.send({type:'check'})).type,'preview','no file key: other guards still allow a valid check');}
  console.log('PASS Figma plugin: no implicit writes; preview; approved update & read-back; already updated; conflict; wrong file; wrong binding; superseded revision; unreviewed apply blocked');
 })().catch(e=>{console.error(e);process.exit(1)});

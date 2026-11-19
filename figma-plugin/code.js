@@ -16,7 +16,8 @@ function assertMatch(d){
   return change;
 }
 async function findVariable(){
-  if(figma.fileKey!==FILE_KEY)throw Error('Open the separate Penny test file before running this demo.');
+  // Development plugins may not be given the file key; when it is present it must match. Collection, variable and component checks below still apply.
+  if(figma.fileKey&&figma.fileKey!==FILE_KEY)throw Error('Open the separate Penny test file before running this demo.');
   const collections=await figma.variables.getLocalVariableCollectionsAsync();
   const collection=collections.find(c=>c.name===COLLECTION);
   if(!collection)throw Error('The Penny test token collection was not found.');

@@ -10,7 +10,13 @@ const Tokens = window.VennTokens;
 const KEYS = { workspace: 'venn.workspace.v2', receipts: 'venn.receipts.v2' };
 const POLL_MS = 45000;
 const RECEIPT_SCHEMA = 'venn/receipt-v2';
-const SAMPLE = { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json' };
+/* The sample: a small design system on GitHub, and a Figma file that is a few pushes behind it on purpose. */
+const SAMPLE = {
+  repo: 'mail2tarunv-cpu/penny-tokens',
+  path: 'penny.tokens.json',
+  figmaUrl: 'https://www.figma.com/community/file/1705291296527885452', // Figma Community: each tester gets their own copy
+  syncedSha: 'e4414b756f271dd6c89ade6443d8f36666f74592', // the commit the sample Figma file matches
+};
 
 /* ---------- storage ---------- */
 function load(key, fallback) {
@@ -268,7 +274,7 @@ function changeTable(changes) {
     if (!list.length) return '';
     return `<tr class="group-row"><td colspan="4"><strong>${title}</strong><span class="n">${list.length}</span>${note ? `<span class="note">${note}</span>` : ''}</td></tr>`
       + list.map((c) => `<tr class="change ${i++ >= 12 ? 'more-row hidden' : ''}">
-          <td><div class="token-cell">${specimenPair(c)}<span class="token-name">${esc(c.token || c.name)}${modeTag(c.mode)}${c.beforeAlias !== c.afterAlias && c.before === c.after ? '<small>Same value, now points at a different token</small>' : ''}</span></div></td>
+          <td><div class="token-cell">${specimenPair(c)}<span class="token-name">${esc(c.token || c.name)}${modeTag(c.mode)}${c.beforeAlias !== c.afterAlias && c.before === c.after ? `<small>${c.beforeAlias ? (c.afterAlias ? 'New alias' : 'No longer an alias') : 'Now an alias'}</small>` : ''}</span></div></td>
           <td class="num from">${formatCell(c.type, c.before, c.beforeAlias)}</td>
           <td class="num to">${formatCell(c.type, c.after, c.afterAlias)}</td>
           <td>${lastTouch(c.name)}</td>
@@ -424,6 +430,19 @@ function vennMark({ drift = 0, animate = false } = {}) {
   </svg>`;
 }
 
+/* For people trying the sample: the three things to do in Figma, in order. */
+function sampleGuide() {
+  if (!workspace.sample || workspace.guideHidden) return '';
+  return `<div class="card guide">
+    <div class="guide-head"><h2>Try the update in Figma</h2><button class="link-button" id="hideGuide" type="button">Hide</button></div>
+    <ol class="guide-steps">
+      <li><strong>Copy the sample file</strong><p>It opens on Figma Community. Press Open in Figma to get your own copy.</p><a class="button" href="${esc(workspace.figmaUrl)}" target="_blank" rel="noopener noreferrer">${icon('figma')}Open sample file</a></li>
+      <li><strong>Add the Venn plugin</strong><p>Unzip it. In Figma Desktop: Plugins → Development → Import plugin from manifest.</p><a class="button" href="figma-plugin.zip" download>${icon('download')}Download plugin</a></li>
+      <li><strong>Run it on your copy</strong><p>Plugins → Development → Venn. Choose Use the sample, tick the changes, Apply, then Record in Venn.</p></li>
+    </ol>
+  </div>`;
+}
+
 function syncNote() {
   const sha = `<span class="mono">${esc(short(workspace.syncedSha))}</span>`;
   return workspace.confirmedAt
@@ -465,7 +484,9 @@ function renderDashboard(changes, commits) {
         </div>
       </div>`;
 
-  body.innerHTML = `${banner}${changeTable(changes)}${pushesCard(commits)}`;
+  body.innerHTML = `${sampleGuide()}${banner}${changeTable(changes)}${pushesCard(commits)}`;
+  const hide = $('hideGuide');
+  if (hide) hide.addEventListener('click', () => { workspace.guideHidden = true; save(KEYS.workspace, workspace); render(); });
   if (changes.length) $('applyButton').addEventListener('click', () => openModal());
   const more = $('showMore');
   if (more) more.addEventListener('click', () => {
@@ -596,7 +617,7 @@ function showSlide(n) {
   document.querySelectorAll('.slide').forEach((s) => s.classList.toggle('hidden', Number(s.dataset.slide) !== slide));
   document.querySelectorAll('#introDots button').forEach((d) => d.classList.toggle('active', Number(d.dataset.to) === slide));
   $('introBack').classList.toggle('hidden', slide === 0);
-  $('introNext').textContent = slide === 2 ? 'Connect GitHub' : 'Next';
+  $('introNext').textContent = slide === 2 ? 'Get started' : 'Next';
   $('intro').dataset.slide = String(slide);
 }
 function leaveIntro() {
@@ -722,7 +743,12 @@ $('introNext').addEventListener('click', () => { if (slide === 2) leaveIntro(); 
 $('introBack').addEventListener('click', () => showSlide(slide - 1));
 document.querySelectorAll('#introDots button').forEach((d) => d.addEventListener('click', () => showSlide(Number(d.dataset.to))));
 $('repoNext').addEventListener('click', submitRepo);
-$('useSample').addEventListener('click', () => { $('repoInput').value = SAMPLE.repo; $('pathInput').value = SAMPLE.path; submitRepo(); });
+$('useSample').addEventListener('click', () => {
+  workspace = { repo: SAMPLE.repo, path: SAMPLE.path, figmaUrl: SAMPLE.figmaUrl, syncedSha: SAMPLE.syncedSha, sample: true };
+  save(KEYS.workspace, workspace);
+  history.replaceState(null, '', '#changes');
+  boot();
+});
 ['repoInput', 'pathInput'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') submitRepo(); }));
 $('figmaNext').addEventListener('click', () => submitFigma(false));
 $('figmaSkip').addEventListener('click', () => submitFigma(true));

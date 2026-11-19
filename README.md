@@ -6,6 +6,8 @@ Push a change to your token file, Venn shows what no longer matches Figma, and t
 
 Live: https://venn-peach-eight.vercel.app · Sample tokens: https://github.com/mail2tarunv-cpu/penny-tokens
 
+**Try it in two minutes.** On the site, choose **Try the sample**. Copy the sample Figma file from Figma Community (https://www.figma.com/community/file/1705291296527885452); its variables are four pushes behind the sample tokens on purpose. Add the plugin, run Venn on your copy, choose **Use the sample**, apply the 23 changes and press **Record in Venn**.
+
 ## How it works
 
 1. **Intro.** Three short screens explain the loop. Skip goes straight to setup.

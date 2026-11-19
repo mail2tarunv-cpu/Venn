@@ -51,7 +51,7 @@ def wire(page, state):
 
     def raw(route):
         sha = route.request.url.split(f"{REPO}/")[1].split("/")[0]
-        route.fulfill(status=200, content_type="text/plain", headers={"Access-Control-Allow-Origin": "*"}, body=json.dumps(FILES[sha]))
+        route.fulfill(status=200, content_type="text/plain", headers={"Access-Control-Allow-Origin": "*"}, body=json.dumps(FILES.get(sha, tokens(2))))
 
     page.route("https://api.github.com/**", commits)
     page.route("https://raw.githubusercontent.com/**", raw)
@@ -83,7 +83,7 @@ with sync_playwright() as p:
         if width == 1440:
             page.locator("#introNext").click()
             page.locator("#introNext").click()
-            assert page.locator("#introNext").inner_text() == "Connect GitHub"
+            assert page.locator("#introNext").inner_text() == "Get started"
             page.locator("#introNext").click()
         else:
             page.locator("#skipIntro").click()
@@ -93,7 +93,9 @@ with sync_playwright() as p:
         page.locator("#repoInput").fill("not a repo")
         page.locator("#repoNext").click()
         assert "owner/name" in page.locator("#repoError").inner_text()
-        page.locator("#useSample").click()
+        page.locator("#repoInput").fill(REPO)
+        page.locator("#pathInput").fill(PATH)
+        page.locator("#repoNext").click()
         page.locator('.step[data-step="2"]').wait_for(state="visible")
         page.locator("#figmaInput").fill("https://example.com/x")
         page.locator("#figmaNext").click()
@@ -176,6 +178,16 @@ with sync_playwright() as p:
         assert REPO in page.locator("#connectionRows").inner_text()
         page.reload(wait_until="networkidle")
         assert page.locator("#app").is_visible() and page.locator("#onboarding").is_hidden()
+
+        # The sample: one click from setup straight to the dashboard, with the Figma steps laid out.
+        page.evaluate("localStorage.removeItem('venn.workspace.v2')")
+        page.reload(wait_until="networkidle")
+        page.locator("#useSample").click()
+        page.locator(".guide").wait_for()
+        assert page.locator(".guide li").count() == 3
+        assert page.locator(".guide a").first.get_attribute("href").startswith("https://www.figma.com/")
+        page.locator("#hideGuide").click()
+        assert page.locator(".guide").count() == 0
 
         assert not errors, errors
         print("PASS", width, "intro, onboarding, overview, tokens, new push, record link, receipts, connections, reload, no overflow")

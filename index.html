@@ -58,7 +58,7 @@
         </div>
         <span class="slide-kicker">Step 1 · Review</span>
         <h1>See exactly what drifted</h1>
-        <p>Each change is drawn as Figma's value over the code's value, with the push that changed it. Nothing in Figma moves yet.</p>
+        <p>Venn lists every token that changed in code since Figma was last updated, and the push that changed it. Nothing in Figma moves yet.</p>
       </div>
 
       <div class="slide hidden" data-slide="2">
@@ -100,17 +100,21 @@
     <div class="step" data-step="1">
       <h1 id="onboardTitle">Connect your tokens on GitHub</h1>
       <p class="lede">Venn reads one design-token file from a public repository and tells you when a push changes it.</p>
+      <div class="sample-box">
+        <div><strong>Just trying Venn out?</strong><p>Use a sample design system that's already on GitHub, with a Figma file you can copy.</p></div>
+        <button class="button primary" id="useSample" type="button">Try the sample</button>
+      </div>
+      <div class="or"><span>or connect your own</span></div>
       <label class="field"><span>Repository</span>
         <input id="repoInput" type="text" placeholder="owner/repository" autocomplete="off" spellcheck="false" />
       </label>
       <label class="field"><span>Token file</span>
         <input id="pathInput" type="text" placeholder="tokens.json" autocomplete="off" spellcheck="false" />
       </label>
-      <p class="hint">Private repositories need the Venn GitHub App, which is not available yet</p>
+      <p class="hint">Public repositories only for now</p>
       <p class="form-error hidden" id="repoError" role="alert"></p>
       <div class="actions">
-        <button class="button" id="useSample" type="button">Use the Penny sample</button>
-        <button class="button primary" id="repoNext" type="button">Continue</button>
+        <button class="button" id="repoNext" type="button">Continue</button>
       </div>
     </div>
 

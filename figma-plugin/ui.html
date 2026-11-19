@@ -1,23 +1,130 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-:root{font:13px/1.55 Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:#202226;background:#fff}*{box-sizing:border-box}body{margin:0;padding:23px}.heading{padding-bottom:19px;border-bottom:1px solid #e9ebee}.label{color:#989b9f;font-weight:700;font-size:10px;letter-spacing:.09em;text-transform:uppercase}h1{font-size:19px;font-weight:650;letter-spacing:-.55px;margin:8px 0 6px}p{margin:0;color:#777c82}.section{padding-top:21px}.title{display:flex;align-items:center;justify-content:space-between}.title h2{font-size:15px;margin:0;letter-spacing:-.2px}.chip{border-radius:6px;background:#fff0e8;color:#a65c3c;padding:5px 8px;font-size:11px;font-weight:600}.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.slot{border:1px solid #e5e6e9;border-radius:9px;overflow:hidden}.slot .labelrow{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #e9eaec}.slot .labelrow span{font-size:11px;color:#737780}.slot .labelrow strong{font-size:11px}.visual{height:100px;background:#fafafa;display:grid;place-items:center}.visual button{padding:9px 22px;background:#008254;color:#fff;border:0;font-weight:650;font-size:12px;pointer-events:none}.visual button.before{border-radius:2px}.visual button.after{border-radius:12px}.message{padding:12px 13px;border-radius:8px;background:#f5f6f7;color:#62676d;font-size:12px;margin-top:16px}.message.error{background:#fff2f0;color:#a23629}.message.success{background:#edf8f1;color:#1c7349}.actions{display:flex;gap:8px;margin-top:22px}.button{height:38px;padding:0 14px;border-radius:8px;border:1px solid #dddfe2;background:#fff;font-weight:650;font-size:12px;cursor:pointer;flex:1}.button.primary{background:#222428;color:#fff;border-color:#222428}.button:disabled{opacity:.45;cursor:default}.checklabel{display:flex;align-items:flex-start;gap:8px;margin-top:16px;color:#5e636a;font-size:12px}.checklabel input{margin:3px 0 0;accent-color:#222}.smallnote{font-size:11px;color:#9ca0a5;line-height:1.6;margin-top:20px}.divider{border:0;border-top:1px solid #e9eaed;margin:20px 0}.hidden{display:none!important}
-</style></head><body>
-<header class="heading"><div class="label">Venn / Penny</div><h1>Review code update</h1><p>One mapped variable in the separate test file.</p></header>
-<section class="section"><div class="title"><h2>Primary button radius</h2><span class="chip" id="chip">Checking</span></div><div class="compare"><div class="slot"><div class="labelrow"><span>Figma</span><strong id="figmaValue">—</strong></div><div class="visual"><button class="before">Continue</button></div></div><div class="slot"><div class="labelrow"><span>Code</span><strong>12px</strong></div><div class="visual"><button class="after">Continue</button></div></div></div><div class="message" id="message">Comparing the current Figma value with the published code snapshot.</div></section>
-<label class="checklabel" id="consentWrap"><input id="consent" type="checkbox" disabled><span>I reviewed the change and want to update this test file.</span></label>
-<div class="actions"><button id="refresh" class="button">Check again</button><button id="apply" class="button primary" disabled>Apply in Figma</button></div>
-<div class="actions hidden" id="receiptSection"><button id="export" class="button primary">Download application receipt</button></div>
-<p class="smallnote">No background updates. No changes to the original Penny library. A receipt records the plugin's Figma read-back, not an independent external audit.</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { --ink:#1d1d1f; --ink-2:#5f6368; --ink-3:#8e9196; --line:#e7e7e4; --accent:#0a7a4b; --accent-soft:#e8f4ee; --warn:#9a5b00; --warn-soft:#fbf1df; --danger:#b3261e;
+    font: 12.5px/1.5 -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif; color: var(--ink); background: #fff; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px; }
+  h1 { font-size: 17px; letter-spacing: -0.015em; margin: 0; }
+  p { margin: 0; }
+  .sub { color: var(--ink-2); margin-top: 4px; }
+  details { margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; }
+  summary { cursor: pointer; padding: 10px 12px; color: var(--ink-2); font-weight: 550; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  .config { padding: 0 12px 12px; display: grid; gap: 8px; }
+  label span { display: block; color: var(--ink-2); font-size: 11.5px; margin-bottom: 3px; font-weight: 550; }
+  input, select { width: 100%; height: 32px; border: 1px solid #d6d6d2; border-radius: 7px; padding: 0 9px; font: inherit; background: #fff; }
+  .status { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 4px 0 10px; }
+  .status strong { font-size: 13.5px; }
+  .tag { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; background: var(--warn-soft); color: var(--warn); white-space: nowrap; }
+  .tag.ok { background: var(--accent-soft); color: var(--accent); }
+  .rows { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .row { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row.muted { color: var(--ink-3); }
+  .name { font-weight: 600; overflow-wrap: anywhere; }
+  .name small { display: block; font-weight: 400; color: var(--ink-3); }
+  .vals { font: 11.5px ui-monospace, Menlo, monospace; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+  .old { color: var(--ink-3); text-decoration: line-through; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); display: inline-block; vertical-align: -2px; margin-right: 3px; }
+  .consent { display: flex; gap: 8px; align-items: flex-start; margin: 14px 0; color: var(--ink-2); }
+  .consent input, .row input { width: 15px; height: 15px; margin: 0; accent-color: var(--ink); }
+  .actions { display: flex; gap: 8px; }
+  button { font: inherit; font-weight: 600; height: 34px; border-radius: 999px; padding: 0 16px; border: 1px solid #d6d6d2; background: #fff; cursor: pointer; }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); flex: 1; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 9px; background: #f5f5f3; color: var(--ink-2); }
+  .msg.error { background: #fdeceb; color: var(--danger); }
+  .msg.ok { background: var(--accent-soft); color: var(--accent); }
+  .note { color: var(--ink-3); font-size: 11.5px; margin-top: 14px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<h1>Venn</h1>
+<p class="sub" id="sub">Checking GitHub and this file…</p>
+
+<details id="settings">
+  <summary>Source and collection</summary>
+  <div class="config">
+    <label><span>Repository</span><input id="repo" spellcheck="false"></label>
+    <label><span>Token file</span><input id="path" spellcheck="false"></label>
+    <label><span>Variable collection</span><select id="collection"><option value="">First collection</option></select></label>
+    <button id="save">Save and check</button>
+  </div>
+</details>
+
+<div class="status"><strong id="summary">—</strong><span class="tag hidden" id="tag"></span></div>
+<div class="rows" id="rows"></div>
+
+<label class="consent"><input type="checkbox" id="consent" disabled><span>I reviewed the selected changes and want to update this file.</span></label>
+<div class="actions"><button id="refresh">Check again</button><button class="primary" id="apply" disabled>Apply in Figma</button></div>
+<div class="actions hidden" id="receiptRow" style="margin-top:8px"><button class="primary" id="download">Download receipt</button></div>
+<p class="msg hidden" id="msg" role="status"></p>
+<p class="note">Venn only edits variables you tick, reads each value back, and undoes the whole run if any value does not match. It never runs in the background.</p>
+
 <script>
-const $=id=>document.getElementById(id);const send=(msg)=>parent.postMessage({pluginMessage:msg},'*');let receipt=null;
-$('refresh').onclick=()=>{ $('apply').disabled=true;$('consent').checked=false;$('consent').disabled=true;$('message').textContent='Checking current Figma and published source…';send({type:'check'});};
-$('consent').onchange=()=>{$('apply').disabled=!$('consent').checked};
-$('apply').onclick=()=>{$('apply').disabled=true;$('message').textContent='Applying the mapped token and verifying its value…';send({type:'apply',confirmed:true})};
-$('export').onclick=()=>{if(!receipt)return;const file=new Blob([JSON.stringify(receipt,null,2)+'\n'],{type:'application/json'});const u=URL.createObjectURL(file),a=document.createElement('a');a.href=u;a.download='venn-penny-receipt.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);};
-const msg=(value,kind='')=>{$('message').textContent=value;$('message').className='message '+kind};
-window.onmessage=e=>{const m=e.data?.pluginMessage;if(!m)return;
- if(m.type==='preview'){$('figmaValue').textContent=m.before+'px';$('chip').textContent=m.status==='ready'?'Ready to update':m.status==='up-to-date'?'Up to date':'Conflict';$('consent').disabled=m.status!=='ready';$('consent').checked=false;$('apply').disabled=true;msg(m.status==='ready'?'The live Figma value matches the captured 2px baseline. Review and approve the 12px change.':m.status==='up-to-date'?'Figma already matches the published code value. No update is needed.':'Figma differs from both the baseline and code. Nothing will be overwritten.',m.status==='conflict'?'error':m.status==='up-to-date'?'success':'');}
- if(m.type==='applied'){receipt=m.receipt;$('chip').textContent='Applied';$('figmaValue').textContent=m.receipt.readBack+'px';$('consent').disabled=true;$('apply').disabled=true;document.querySelector('.visual .before').style.borderRadius=m.receipt.readBack+'px';$('receiptSection').classList.remove('hidden');msg('Figma reports the updated value: '+m.receipt.readBack+'px. Export the receipt to record it in Venn.','success');}
- if(m.type==='error'){msg(m.message,'error');$('apply').disabled=true;}
+const $ = (id) => document.getElementById(id);
+const post = (msg) => parent.postMessage({ pluginMessage: msg }, '*');
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let rows = [], receipt = null;
+
+const fmt = (type, v) => v === undefined || v === null ? '—' : type === 'color' ? `<span class="sw" style="background:${esc(v)}"></span>${esc(v)}` : esc(v);
+const LABEL = { match: 'Matches', missing: 'Not in Figma (not created)', type: 'Different type in Figma', alias: 'Uses an alias in Figma', unsupported: 'Unsupported value in Figma' };
+
+function message(text, kind) { const m = $('msg'); m.textContent = text; m.className = 'msg ' + (kind || ''); }
+function selected() { return Array.from(document.querySelectorAll('.pick:checked')).map((i) => i.value); }
+function syncButtons() {
+  const n = selected().length;
+  $('consent').disabled = n === 0;
+  if (!n) $('consent').checked = false;
+  $('apply').disabled = !(n && $('consent').checked);
+  $('apply').textContent = n ? `Apply ${n} ${n === 1 ? 'change' : 'changes'} in Figma` : 'Apply in Figma';
+}
+function render(data) {
+  rows = data.rows;
+  const differs = rows.filter((r) => r.status === 'differs');
+  $('sub').textContent = `${data.collection} · ${data.sha.slice(0, 7)} ${data.message}`;
+  $('summary').textContent = differs.length ? `${differs.length} ${differs.length === 1 ? 'difference' : 'differences'} with code` : 'Figma matches code';
+  $('tag').textContent = differs.length ? 'Needs review' : 'Up to date';
+  $('tag').className = 'tag' + (differs.length ? '' : ' ok');
+  const order = { differs: 0, missing: 1, type: 1, alias: 1, unsupported: 1, match: 2 };
+  $('rows').innerHTML = rows.slice().sort((a, b) => order[a.status] - order[b.status]).map((r) => r.status === 'differs'
+    ? `<label class="row"><input type="checkbox" class="pick" value="${esc(r.name)}"><span class="name">${esc(r.name)}<small>${esc(r.type)}</small></span><span class="vals"><span class="old">${fmt(r.type, r.figma)}</span>→<span>${fmt(r.type, r.code)}</span></span></label>`
+    : `<div class="row muted"><span></span><span class="name">${esc(r.name)}<small>${esc(LABEL[r.status])}</small></span><span class="vals">${fmt(r.type, r.status === 'match' ? r.figma : r.code)}</span></div>`).join('');
+  const sel = $('collection');
+  sel.innerHTML = '<option value="">First collection</option>' + data.collections.map((c) => `<option ${c === data.collection ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  document.querySelectorAll('.pick').forEach((i) => i.addEventListener('change', syncButtons));
+  syncButtons();
+}
+function check(config) { $('apply').disabled = true; message('Checking GitHub and this file…'); post({ type: 'check', config }); }
+
+$('consent').onchange = syncButtons;
+$('refresh').onclick = () => check({ repo: $('repo').value, path: $('path').value, collection: $('collection').value });
+$('save').onclick = () => { $('settings').open = false; $('refresh').onclick(); };
+$('apply').onclick = () => { const names = selected(); $('apply').disabled = true; message('Applying and reading values back…'); post({ type: 'apply', names, confirmed: $('consent').checked }); };
+$('download').onclick = () => {
+  if (!receipt) return;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2) + '\n'], { type: 'application/json' }));
+  const a = document.createElement('a'); a.href = url; a.download = `venn-receipt-${receipt.sourceSha.slice(0, 7)}.json`;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
-send({type:'check'});
-</script></body></html>
+
+window.onmessage = (e) => {
+  const m = e.data && e.data.pluginMessage; if (!m) return;
+  if (m.type === 'config') { $('repo').value = m.config.repo; $('path').value = m.config.path; }
+  if (m.type === 'checked') { render(m); if (!receipt) $('msg').classList.add('hidden'); }
+  if (m.type === 'applied') {
+    receipt = m.receipt;
+    $('receiptRow').classList.remove('hidden');
+    message(`Updated ${receipt.changes.length} ${receipt.changes.length === 1 ? 'variable' : 'variables'}. Figma confirmed every value. Download the receipt and import it in Venn.`, 'ok');
+  }
+  if (m.type === 'error') { message(m.message, 'error'); syncButtons(); }
+};
+post({ type: 'init' });
+</script>
+</body>
+</html>

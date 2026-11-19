@@ -1,71 +1,170 @@
-// Venn — isolated Penny demonstration.
-// Never changes the file without explicit review and confirmation in the plugin.
-figma.showUI(__html__, {width: 440, height: 520, themeColors: true});
-const SOURCE = 'https://venn-peach-eight.vercel.app/source.json';
-const FILE_KEY = 'nfPIHqVPJv4OJ5yOavc1ha';
-const COLLECTION = 'Penny / Test tokens';
-const TOKEN_NAME = 'radius/button';
-const NODE_ID = '1:9';
-let lastCheck = null;
-let receipt = null;
-function send(type,data={}) {figma.ui.postMessage({type,...data});}
-function assertMatch(d){
-  if(!d||d.schema!=='design-drift/source-v1'||d.target?.figmaFileKey!==FILE_KEY||d.target.collection!==COLLECTION||d.target.componentNodeId!==NODE_ID||!Array.isArray(d.changes)||d.changes.length!==1)throw Error('The source snapshot does not match this test.');
-  const change=d.changes[0];
-  if(change.name!==TOKEN_NAME||change.type!=='number'||change.expectedBaseline!==2||change.proposed!==12||change.kind!=='variable')throw Error('Unexpected token change. No update was made.');
-  return change;
+// Venn for Figma.
+// Compares a design-token file on GitHub with this file's local variables and applies only the
+// differences the user ticks. Nothing is written on open or on check. Every write is read back;
+// if any read-back disagrees, all writes from that run are restored.
+figma.showUI(__html__, { width: 460, height: 640, themeColors: true });
+
+const DEFAULTS = { repo: 'mail2tarunv-cpu/penny-tokens', path: 'penny.tokens.json', collection: '' };
+const RECEIPT_SCHEMA = 'venn/receipt-v2';
+let state = null;
+
+const send = (type, data = {}) => figma.ui.postMessage({ type, ...data });
+
+/* ---------- tokens (same rules as tokens.js on the site) ---------- */
+function normalizeColor(value) {
+  if (typeof value !== 'string') return null;
+  let hex = value.trim().replace(/^#/, '');
+  if (/^[0-9a-f]{3}$/i.test(hex)) hex = hex.split('').map((c) => c + c).join('');
+  return /^[0-9a-f]{6}$/i.test(hex) ? '#' + hex.toUpperCase() : null;
 }
-async function findVariable(){
-  // Development plugins may not be given the file key; when it is present it must match. Collection, variable and component checks below still apply.
-  if(figma.fileKey&&figma.fileKey!==FILE_KEY)throw Error('Open the separate Penny test file before running this demo.');
-  const collections=await figma.variables.getLocalVariableCollectionsAsync();
-  const collection=collections.find(c=>c.name===COLLECTION);
-  if(!collection)throw Error('The Penny test token collection was not found.');
-  const variables=await figma.variables.getLocalVariablesAsync();
-  const variable=variables.find(v=>v.variableCollectionId===collection.id&&v.name===TOKEN_NAME&&v.resolvedType==='FLOAT');
-  if(!variable)throw Error('The mapped button-radius variable was not found.');
-  const value=variable.valuesByMode[collection.defaultModeId];
-  if(typeof value!=='number'||!Number.isFinite(value))throw Error('The current button-radius value is not a number.');
-  const component=await figma.getNodeByIdAsync(NODE_ID);
-  if(!component||component.name!=='Penny / Button / Primary')throw Error('The mapped Penny button component was not found.');
-  const binding=component.boundVariables?.topLeftRadius?.id;
-  if(binding!==variable.id)throw Error('The test button is not bound to the expected variable. Nothing was changed.');
-  return {variable, mode:collection.defaultModeId, value, component};
+function flatten(tree) {
+  const out = {};
+  (function walk(node, path) {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+    if ('$value' in node) {
+      const t = node.$type;
+      if (t === 'color') { const v = normalizeColor(node.$value); if (v) out[path.join('/')] = { type: 'color', value: v }; }
+      else if (t === 'number' || t === 'dimension') {
+        const raw = node.$value;
+        const n = typeof raw === 'number' ? raw : /^-?\d+(\.\d+)?(px)?$/.test(String(raw).trim()) ? parseFloat(raw) : NaN;
+        if (Number.isFinite(n)) out[path.join('/')] = { type: 'number', value: n };
+      }
+      return;
+    }
+    for (const key of Object.keys(node)) if (!key.startsWith('$')) walk(node[key], path.concat(key));
+  })(tree, []);
+  return out;
 }
-async function check(){
-  const r=await fetch(SOURCE, {cache:'no-store'});
-  if(!r.ok)throw Error('Could not reach the published token source.');
-  const data=await r.json();
-  const change=assertMatch(data);
-  const figmaState=await findVariable();
-  const disposition=figmaState.value===change.proposed?'up-to-date':figmaState.value===change.expectedBaseline?'ready':'conflict';
-  lastCheck={change, sourceRevision:data.source.revision, disposition};
-  send('preview',{status:disposition, before:figmaState.value, after:change.proposed, component:figmaState.component.name, token:change.name, revision:data.source.revision});
+
+/* ---------- GitHub ---------- */
+async function headCommit(repo, path) {
+  const res = await fetch(`https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&per_page=1`, { headers: { Accept: 'application/vnd.github+json' } });
+  if (res.status === 404) throw Error('Repository or file not found. Is the repository public?');
+  if (res.status === 403 || res.status === 429) throw Error('GitHub is rate limiting requests. Try again in a few minutes.');
+  if (!res.ok) throw Error('Could not reach GitHub.');
+  const list = await res.json();
+  if (!list.length) throw Error('No commits touch that token file.');
+  return { sha: list[0].sha, message: String(list[0].commit.message).split('\n')[0] };
 }
-async function applyConfirmed(){
-  if(!lastCheck||lastCheck.disposition!=='ready')throw Error('Review the current code and Figma values before applying.');
-  const current=await findVariable();
-  if(current.value!==lastCheck.change.expectedBaseline)throw Error('The Figma value changed since review. Check again before applying.');
-  // Check the source again so an outdated UI cannot apply a superseded value.
-  const sourceResponse=await fetch(SOURCE,{cache:'no-store'});
-  if(!sourceResponse.ok)throw Error('The code source could not be verified.');
-  const source=await sourceResponse.json(),change=assertMatch(source);
-  if(source.source.revision!==lastCheck.sourceRevision||change.proposed!==lastCheck.change.proposed)throw Error('The published source changed. Review the new version first.');
-  current.variable.setValueForMode(current.mode,change.proposed);
-  const readBack=(await findVariable()).value;
-  if(readBack!==change.proposed){
-    try{current.variable.setValueForMode(current.mode,current.value);}catch{}
-    throw Error('Figma did not confirm the new value. The plugin attempted to restore the previous value.');
+async function tokensAt(repo, sha, path) {
+  const res = await fetch(`https://raw.githubusercontent.com/${repo}/${sha}/${path}`);
+  if (!res.ok) throw Error('Could not read the token file.');
+  let tree;
+  try { tree = JSON.parse(await res.text()); } catch (e) { throw Error('The token file is not valid JSON.'); }
+  return flatten(tree);
+}
+
+/* ---------- Figma values ---------- */
+const hex2 = (x) => Math.round(Math.min(1, Math.max(0, x)) * 255).toString(16).padStart(2, '0');
+function readValue(variable, raw) {
+  if (raw && typeof raw === 'object' && raw.type === 'VARIABLE_ALIAS') return { alias: true };
+  if (variable.resolvedType === 'FLOAT' && typeof raw === 'number') return { value: raw };
+  if (variable.resolvedType === 'COLOR' && raw && typeof raw.r === 'number') {
+    if (raw.a !== undefined && raw.a < 1) return { unsupported: 'Has transparency' };
+    return { value: ('#' + hex2(raw.r) + hex2(raw.g) + hex2(raw.b)).toUpperCase() };
   }
-  receipt={schema:'design-drift/penny-receipt-v1',fileKey:FILE_KEY,collection:COLLECTION,tokenName:TOKEN_NAME,component:current.component.name,before:current.value,after:change.proposed,readBack,actor:figma.currentUser?.name||'Figma user',appliedAt:new Date().toISOString(),sourceRevision:source.source.revision,verification:'plugin-readback-only'};
-  lastCheck={change,sourceRevision:source.source.revision,disposition:'up-to-date'};
-  send('applied',{receipt});
-  figma.notify('Penny button radius updated and read back in Figma.');
+  return { unsupported: 'Unsupported value' };
 }
-figma.ui.onmessage=async message=>{
- try{
-  if(message.type==='check')await check();
-  if(message.type==='apply'&&message.confirmed===true)await applyConfirmed();
-  if(message.type==='receipt'){if(!receipt)throw Error('No completed update to export.');send('receipt',{receipt});}
- }catch(error){send('error',{message:error?.message||String(error)});}
+function toFigma(type, value) {
+  if (type === 'number') return value;
+  const h = value.slice(1);
+  return { r: parseInt(h.slice(0, 2), 16) / 255, g: parseInt(h.slice(2, 4), 16) / 255, b: parseInt(h.slice(4, 6), 16) / 255, a: 1 };
+}
+const TYPE_MATCH = { number: 'FLOAT', color: 'COLOR' };
+
+async function collectionFor(name) {
+  const collections = await figma.variables.getLocalVariableCollectionsAsync();
+  if (!collections.length) throw Error('This file has no local variable collections.');
+  const collection = name ? collections.find((c) => c.name === name) : collections[0];
+  if (!collection) throw Error(`No collection named "${name}" in this file.`);
+  return { collection, names: collections.map((c) => c.name) };
+}
+
+/* ---------- check: read only ---------- */
+async function check(config) {
+  const { collection, names } = await collectionFor(config.collection);
+  const head = await headCommit(config.repo, config.path);
+  const tokens = await tokensAt(config.repo, head.sha, config.path);
+  const variables = (await figma.variables.getLocalVariablesAsync()).filter((v) => v.variableCollectionId === collection.id);
+  const modeId = collection.defaultModeId;
+  const rows = Object.keys(tokens).sort().map((name) => {
+    const token = tokens[name];
+    const variable = variables.find((v) => v.name === name);
+    if (!variable) return { name, type: token.type, code: token.value, status: 'missing' };
+    if (TYPE_MATCH[token.type] !== variable.resolvedType) return { name, type: token.type, code: token.value, status: 'type' };
+    const current = readValue(variable, variable.valuesByMode[modeId]);
+    if (current.alias) return { name, type: token.type, code: token.value, status: 'alias' };
+    if (current.unsupported) return { name, type: token.type, code: token.value, status: 'unsupported' };
+    return { name, type: token.type, code: token.value, figma: current.value, id: variable.id, status: current.value === token.value ? 'match' : 'differs' };
+  });
+  state = { config, sha: head.sha, message: head.message, collection: collection.name, modeId, rows };
+  send('checked', { sha: head.sha, message: head.message, collection: collection.name, collections: names, rows });
+}
+
+/* ---------- apply: only reviewed rows, verified, all-or-nothing ---------- */
+async function apply(names, confirmed) {
+  if (!confirmed) throw Error('Tick the review box before applying.');
+  if (!state) throw Error('Check the file before applying.');
+  const chosen = state.rows.filter((r) => r.status === 'differs' && names.includes(r.name));
+  if (!chosen.length || chosen.length !== names.length) throw Error('Select at least one difference to apply.');
+
+  const head = await headCommit(state.config.repo, state.config.path);
+  if (head.sha !== state.sha) throw Error('A new commit arrived since you checked. Check again before applying.');
+
+  const targets = [];
+  for (const row of chosen) {
+    const variable = await figma.variables.getVariableByIdAsync(row.id);
+    if (!variable) throw Error(`${row.name} no longer exists. Nothing was changed.`);
+    const now = readValue(variable, variable.valuesByMode[state.modeId]);
+    if (now.value !== row.figma) throw Error(`${row.name} changed in Figma since you checked. Nothing was changed.`);
+    targets.push({ row, variable, original: variable.valuesByMode[state.modeId] });
+  }
+
+  const written = [];
+  try {
+    for (const t of targets) { t.variable.setValueForMode(state.modeId, toFigma(t.row.type, t.row.code)); written.push(t); }
+    const changes = targets.map((t) => {
+      const back = readValue(t.variable, t.variable.valuesByMode[state.modeId]).value;
+      if (back !== t.row.code) throw Error(`Figma did not confirm ${t.row.name}.`);
+      return { name: t.row.name, type: t.row.type, before: t.row.figma, after: t.row.code, readBack: back };
+    });
+    const receipt = {
+      schema: RECEIPT_SCHEMA,
+      sourceRepo: state.config.repo,
+      sourcePath: state.config.path,
+      sourceSha: state.sha,
+      sourceMessage: state.message,
+      fileKey: figma.fileKey || null,
+      fileName: figma.root.name,
+      collection: state.collection,
+      actor: (figma.currentUser && figma.currentUser.name) || 'Figma user',
+      appliedAt: new Date().toISOString(),
+      changes,
+      verification: 'plugin-readback-only',
+    };
+    send('applied', { receipt });
+    await check(state.config);
+  } catch (err) {
+    for (const t of written) { try { t.variable.setValueForMode(state.modeId, t.original); } catch (e) { /* best effort */ } }
+    throw Error(err.message + ' All changes from this run were undone.');
+  }
+}
+
+figma.ui.onmessage = async (msg) => {
+  try {
+    if (msg.type === 'init') {
+      const saved = await figma.clientStorage.getAsync('venn.config');
+      const config = Object.assign({}, DEFAULTS, saved || {});
+      send('config', { config });
+      await check(config);
+    } else if (msg.type === 'check') {
+      const config = { repo: String(msg.config.repo).trim(), path: String(msg.config.path).trim(), collection: String(msg.config.collection || '') };
+      await figma.clientStorage.setAsync('venn.config', config);
+      await check(config);
+    } else if (msg.type === 'apply') {
+      await apply(Array.isArray(msg.names) ? msg.names : [], msg.confirmed === true);
+    }
+  } catch (err) {
+    send('error', { message: err.message || String(err) });
+  }
 };

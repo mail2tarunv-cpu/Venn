@@ -1,5 +1,5 @@
 {
-  "name": "Venn \u2014 Penny Demo",
+  "name": "Venn",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -8,9 +8,10 @@
   ],
   "networkAccess": {
     "allowedDomains": [
-      "https://venn-peach-eight.vercel.app"
+      "https://api.github.com",
+      "https://raw.githubusercontent.com"
     ],
-    "reasoning": "Read the Venn published Penny design token snapshot."
+    "reasoning": "Reads the design-token file and its latest commit from the GitHub repository you connect."
   },
   "enablePrivatePluginApi": true,
   "permissions": [

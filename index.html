@@ -3,52 +3,143 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#ffffff" />
-  <title>Venn — Penny</title>
-  <meta name="description" content="Review a code change and see how it maps to a Figma design-system component." />
+  <meta name="theme-color" content="#fbfbfa" />
+  <title>Venn</title>
+  <meta name="description" content="Venn watches your design tokens on GitHub and keeps the matching Figma variables in step, after you approve." />
   <link rel="stylesheet" href="app.css" />
 </head>
 <body>
-<div class="shell" id="shell">
+
+<!-- First run: connect GitHub, connect Figma, choose the baseline -->
+<section class="onboarding hidden" id="onboarding" aria-labelledby="onboardTitle">
+  <div class="onboard-card">
+    <div class="wordmark">Venn</div>
+    <ol class="stepper" id="stepper" aria-label="Setup progress">
+      <li data-step="1" class="current"><span>1</span>GitHub</li>
+      <li data-step="2"><span>2</span>Figma</li>
+      <li data-step="3"><span>3</span>Baseline</li>
+    </ol>
+
+    <div class="step" data-step="1">
+      <h1 id="onboardTitle">Connect your tokens on GitHub</h1>
+      <p class="lede">Venn reads one design-token file from a public repository and tells you when a push changes it.</p>
+      <label class="field"><span>Repository</span>
+        <input id="repoInput" type="text" placeholder="owner/repository" autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="field"><span>Token file</span>
+        <input id="pathInput" type="text" placeholder="tokens.json" autocomplete="off" spellcheck="false" />
+      </label>
+      <p class="hint">Private repositories need the Venn GitHub App, which is not available yet.</p>
+      <p class="form-error hidden" id="repoError" role="alert"></p>
+      <div class="actions">
+        <button class="button quiet" id="useSample" type="button">Use the Penny sample</button>
+        <button class="button solid" id="repoNext" type="button">Continue</button>
+      </div>
+    </div>
+
+    <div class="step hidden" data-step="2">
+      <h1>Connect your Figma file</h1>
+      <p class="lede">Venn changes Figma through a small plugin you run in Figma. It only touches variables you review.</p>
+      <label class="field"><span>Figma file link</span>
+        <input id="figmaInput" type="url" placeholder="https://www.figma.com/design/…" autocomplete="off" spellcheck="false" />
+      </label>
+      <ol class="plain-steps">
+        <li>Download the plugin and unzip it.</li>
+        <li>In Figma Desktop: Plugins, Development, Import plugin from manifest.</li>
+        <li>Open your file and run Venn.</li>
+      </ol>
+      <p class="form-error hidden" id="figmaError" role="alert"></p>
+      <div class="actions">
+        <a class="button quiet" href="figma-plugin.zip" download>Download plugin</a>
+        <button class="button solid" id="figmaNext" type="button">Continue</button>
+      </div>
+      <button class="link-button" id="figmaSkip" type="button">Skip for now</button>
+    </div>
+
+    <div class="step hidden" data-step="3">
+      <h1>Which commit does Figma match today?</h1>
+      <p class="lede">Venn will show everything that changed after this commit.</p>
+      <div class="commit-picker" id="baselinePicker" role="radiogroup" aria-label="Baseline commit"></div>
+      <div class="actions">
+        <button class="button quiet" id="baselineBack" type="button">Back</button>
+        <button class="button solid" id="finishSetup" type="button">Start watching</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="app hidden" id="app">
   <aside class="sidebar" id="sidebar">
-    <div class="brand">Venn</div>
-    <div class="workspace-block"><span class="workspace-mark">P</span><span class="workspace-copy"><strong>Penny</strong><small>Design system</small></span></div>
-    <nav aria-label="Workspace" class="nav">
-      <button class="nav-link active" data-page="changes"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M4 3h16c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2zm0 2v14h7V5H4zm9 0v14h7V5h-7z"/></svg> Changes <span id="navCount" class="nav-count">1</span></button>
-      <button class="nav-link" data-page="history"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M13 2a10 10 0 1 1-9.9 11H1l4-4 4 4H5.1A8 8 0 1 0 13 4V2zm-1 5h2v5l4 2-1 1.8-5-3V7z"/></svg> History</button>
-      <button class="nav-link" data-page="setup"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M19.14 12.94a7.9 7.9 0 0 0 0-1.88l2.03-1.58-2-3.46-2.39.96a8.34 8.34 0 0 0-1.63-.95L14.78 3h-4l-.36 3.03c-.59.24-1.14.55-1.63.95L6.4 6.02l-2 3.46 2.03 1.58a6 6 0 0 0 0 1.88L4.4 14.52l2 3.46 2.39-.96c.49.4 1.04.71 1.63.95L10.78 21h4l.36-3.03c.59-.24 1.14-.55 1.63-.95l2.39.96 2-3.46-2.02-1.58zM12.78 15a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg> Connections</button>
+    <div class="wordmark">Venn</div>
+    <button class="workspace" id="workspaceButton" type="button" aria-label="Open connections">
+      <span class="workspace-mark" aria-hidden="true">V</span>
+      <span class="workspace-copy"><strong id="workspaceName">—</strong><small id="workspaceFile">—</small></span>
+    </button>
+    <nav class="nav" aria-label="Workspace">
+      <button class="nav-link active" data-page="changes" type="button">Changes <span class="count hidden" id="navCount">0</span></button>
+      <button class="nav-link" data-page="history" type="button">History</button>
+      <button class="nav-link" data-page="connections" type="button">Connections</button>
     </nav>
-    
+    <div class="watch" id="watch"><span class="dot" aria-hidden="true"></span><span id="watchText">Connecting…</span></div>
   </aside>
-  <div class="main-column">
+
+  <div class="column">
     <header class="topbar">
-      <button class="mobile-menu icon-button" aria-label="Open menu" id="menuButton"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg></button>
-      <span class="breadcrumbs">Penny <span class="crumb-sep">/</span> <strong id="pageCrumb">Overview</strong></span>
-      
+      <button class="menu-button" id="menuButton" type="button" aria-label="Open menu"><span></span><span></span></button>
+      <span class="crumbs"><span id="crumbRepo">—</span><span class="sep">/</span><strong id="pageCrumb">Changes</strong></span>
     </header>
+
     <main id="main">
-      <section class="page" id="page-changes">
-        <div class="page-heading"><div><h1>Design changes</h1><p>One code change for Penny.</p></div></div>
-        <div class="review-panel">
-          <div class="review-top"><div class="review-identity"><div><h2>Button / Primary</h2><p>Corner radius · <code>radius/button</code></p></div></div><span class="state-tag">Needs review</span></div><div class="visual-compare"><div class="compare-cell"><div class="compare-top"><span>In Figma</span><strong>2px</strong></div><div class="preview-stage"><button class="specimen before" tabindex="-1">Continue</button></div></div><div class="compare-cell"><div class="compare-top"><span>In code</span><strong>12px</strong></div><div class="preview-stage"><button class="specimen after" tabindex="-1">Continue</button></div></div></div>
-          <div class="review-lower"><div class="mapping"><strong>Figma target</strong><span>Penny design system</span></div><div class="review-actions"><button id="openSyncInstructions" class="button solid">Apply with plugin <svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg></button></div></div></div><details class="diff-details"><summary><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M7 3C4.8 3 3 4.8 3 7v3c0 1.1-.9 2-2 2 1.1 0 2 .9 2 2v3c0 2.2 1.8 4 4 4v-2c-1.1 0-2-.9-2-2v-3c0-1.3-.4-2.3-1-3 .6-.7 1-1.7 1-3V7c0-1.1.9-2 2-2V3zm10 0v2c1.1 0 2 .9 2 2v3c0 1.3.4 2.3 1 3-.6.7-1 1.7-1 3v1c0 1.1-.9 2-2 2v2c2.2 0 4-1.8 4-4v-3c0-1.1.9-2 2-2-1.1 0-2-.9-2-2V7c0-2.2-1.8-4-4-4z"/></svg> View source change <svg class="material-icon caret" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></summary><div class="code-context"><div class="code-line old"><span>−</span> <code>"radius/button": 2</code></div><div class="code-line new"><span>+</span> <code>"radius/button": 12</code></div></div></details>
-        
+      <section class="page" id="page-changes" aria-labelledby="changesTitle">
+        <div class="page-head">
+          <div><h1 id="changesTitle">Changes</h1><p id="changesSub">Checking GitHub…</p></div>
+          <div class="head-actions">
+            <button class="button quiet" id="notifyButton" type="button">Notify me</button>
+            <button class="button quiet" id="checkNow" type="button">Check now</button>
+          </div>
+        </div>
+        <div id="changesBody"></div>
       </section>
-      <section class="page hidden" id="page-history">
-        <div class="page-heading"><div><h1>History</h1><p>Changes applied to Figma.</p></div><label for="receiptFile" class="button outline clickable"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm0 1.5L18.5 8H14V3.5zM11 19v-5H8l4-4 4 4h-3v5z"/></svg> Import receipt</label><input id="receiptFile" type="file" accept=".json,application/json" hidden /></div>
-        <div class="history-list" id="historyList"><div class="empty-history"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M13 2a10 10 0 1 1-9.9 11H1l4-4 4 4H5.1A8 8 0 1 0 13 4V2zm-1 5h2v5l4 2-1 1.8-5-3V7z"/></svg><h2>No update recorded yet</h2><p>After applying the change in Figma, import the plugin's receipt here. This history is stored in this browser.</p></div></div>
+
+      <section class="page hidden" id="page-history" aria-labelledby="historyTitle">
+        <div class="page-head">
+          <div><h1 id="historyTitle">History</h1><p>Updates applied to Figma.</p></div>
+          <label class="button quiet file-button" for="receiptFile">Import receipt</label>
+          <input id="receiptFile" type="file" accept=".json,application/json" hidden />
+        </div>
+        <div id="historyList" class="history-list"></div>
       </section>
-      <section class="page hidden" id="page-setup">
-        <div class="page-heading"><div><h1>Connections</h1><p>The code source and Figma file for Penny.</p></div></div>
-        <div class="setting-list"><div class="setting-row"><svg class="source-badge material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M8.7 16.6 4.1 12l4.6-4.6L7.3 6 1.3 12l6 6zM15.3 16.6l4.6-4.6-4.6-4.6L16.7 6l6 6-6 6z"/></svg><div><strong>GitHub source</strong><p id="sourceLocation">Loading published token file…</p></div><span id="sourceCheck" class="setting-tail">Checking</span></div><div class="setting-row"><svg class="source-badge material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2 2 8l10 6 10-6-10-6zm-8.7 9.5L2 13l10 6 10-6-1.3-1.5L12 17l-8.7-5.5zM2 17l10 6 10-6-1.3-1.5L12 21l-8.7-5.5L2 17z"/></svg><div><strong>Figma test file</strong><p>Penny / Test tokens · Button / Primary</p></div><a href="https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha" target="_blank" rel="noopener noreferrer" class="setting-link">Open <svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M7 5v2h8.59L5 17.59 6.41 19 17 8.41V17h2V5z"/></svg></a></div><div class="setting-row"><svg class="source-badge material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M20 11h-1V7c0-1.1-.9-2-2-2h-4V4c0-1.1-.9-2-2-2S9 2.9 9 4v1H5c-1.1 0-2 .9-2 2v3h1a2 2 0 0 1 0 4H3v3c0 1.1.9 2 2 2h3v-1a2 2 0 0 1 4 0v1h5c1.1 0 2-.9 2-2v-4h1a2 2 0 0 0 0-4z"/></svg><div><strong>Figma companion plugin</strong><p>Reads this source and updates the open test file after approval.</p></div><a href="figma-plugin.zip" download class="setting-link">Download <svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6-9h-2v9l-3.5-3.5-1.4 1.4L12 16l5.9-6.1-1.4-1.4L13 12V3z"/></svg></a></div></div>
-        
+
+      <section class="page hidden" id="page-connections" aria-labelledby="connTitle">
+        <div class="page-head"><div><h1 id="connTitle">Connections</h1><p>Where Venn reads from and writes to.</p></div></div>
+        <div class="rows" id="connectionRows"></div>
+        <div class="danger-zone"><button class="button quiet" id="resetWorkspace" type="button">Disconnect and start over</button></div>
       </section>
     </main>
-    
   </div>
 </div>
+
 <div class="scrim hidden" id="scrim"></div>
-<div class="modal-wrap hidden" id="syncModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-card"><div class="modal-header"><div><span class="eyebrow">FIGMA SYNC</span><h2 id="modalTitle">Apply the button update</h2></div><button id="closeModal" class="icon-button" aria-label="Close dialog"><svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div><p>The companion plugin checks the radius in the open Penny file. It will only apply the 12px value after you approve the change.</p><div class="modal-steps"><div><span>1</span>Download and install the Figma development plugin.</div><div><span>2</span>Open the Penny test file and run Venn.</div><div><span>3</span>Review the comparison, apply, then export the receipt.</div></div><div class="modal-buttons"><a class="button outline" href="https://www.figma.com/design/nfPIHqVPJv4OJ5yOavc1ha" target="_blank" rel="noopener noreferrer">Open Figma <svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M7 5v2h8.59L5 17.59 6.41 19 17 8.41V17h2V5z"/></svg></a><a class="button solid" href="figma-plugin.zip" download>Get plugin <svg class="material-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6-9h-2v9l-3.5-3.5-1.4 1.4L12 16l5.9-6.1-1.4-1.4L13 12V3z"/></svg></a></div></div></div>
-<div class="toast hidden" id="toast" role="status"></div>
-<script src="app.js" defer></script>
-</body></html>
+
+<div class="modal-wrap hidden" id="applyModal" role="dialog" aria-modal="true" aria-labelledby="applyTitle">
+  <div class="modal">
+    <div class="modal-head"><h2 id="applyTitle">Apply in Figma</h2><button class="icon-button" id="closeModal" type="button" aria-label="Close">×</button></div>
+    <p>The plugin shows each difference between Figma and this commit. You tick what you reviewed, it writes the values, reads them back, and gives you a receipt.</p>
+    <ol class="plain-steps">
+      <li>Open your Figma file and run <strong>Venn</strong> from Plugins, Development.</li>
+      <li>Review the differences, then press <strong>Apply in Figma</strong>.</li>
+      <li>Download the receipt and import it on the History page.</li>
+    </ol>
+    <div class="actions">
+      <a class="button quiet" id="openFigma" href="https://www.figma.com" target="_blank" rel="noopener noreferrer">Open Figma</a>
+      <a class="button solid" href="figma-plugin.zip" download>Get plugin</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+<script src="tokens.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

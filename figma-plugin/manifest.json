@@ -12,5 +12,8 @@
     ],
     "reasoning": "Read the Venn published Penny design token snapshot."
   },
-  "enablePrivatePluginApi": true
+  "enablePrivatePluginApi": true,
+  "permissions": [
+    "currentuser"
+  ]
 }

@@ -1,0 +1,1 @@
+The V0 code was migrated from tarun-portfolio/experiments/design-drift/linda-mvp to Venn/main. This automation-prototype branch preserves earlier V8 experimental backend, database schema, Figma plugin and tests. The default V0 Vercel deployment is separate; backend OAuth and database are unconfigured. Internal `design-drift/` schemas are preserved as protocol identifiers.

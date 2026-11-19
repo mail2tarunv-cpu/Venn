@@ -128,6 +128,9 @@ with sync_playwright() as p:
                        {"name": "spacing/component", "type": "number", "before": 12, "after": 16, "readBack": 16}]}
         upload = lambda body: page.locator("#receiptFile").set_input_files(
             {"name": "r.json", "mimeType": "application/json", "buffer": json.dumps(body).encode()})
+        upload({**receipt, "remainingDifferences": 1})
+        page.wait_for_function("document.querySelector('#toast').innerText.includes('sync point did not move')")
+        assert page.locator("#navCount").inner_text() == "2"
         upload({**receipt, "sourceRepo": "someone/else"})
         page.wait_for_function("document.querySelector('#toast').innerText.includes('different repository')")
         upload(receipt)

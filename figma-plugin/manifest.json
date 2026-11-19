@@ -1,5 +1,6 @@
 {
   "name": "Venn",
+  "id": "1440000000000000001",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",

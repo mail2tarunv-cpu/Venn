@@ -276,6 +276,11 @@ async function importReceipt(file) {
   const receipt = validateReceipt(JSON.parse(await file.text()));
   receipts = [receipt, ...receipts.filter((r) => !(r.appliedAt === receipt.appliedAt && r.sourceSha === receipt.sourceSha))].slice(0, 50);
   save(KEYS.receipts, receipts);
+  if (receipt.remainingDifferences > 0) {
+    render();
+    toast(`Receipt added. ${receipt.remainingDifferences} other ${receipt.remainingDifferences === 1 ? 'difference was' : 'differences were'} left unapplied, so the sync point did not move.`);
+    return;
+  }
   workspace.syncedSha = receipt.sourceSha;
   save(KEYS.workspace, workspace);
   live.synced = await fetchTokens(workspace.repo, workspace.syncedSha, workspace.path).catch(() => null);

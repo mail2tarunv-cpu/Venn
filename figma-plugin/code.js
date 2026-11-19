@@ -140,6 +140,7 @@ async function apply(names, confirmed) {
       actor: (figma.currentUser && figma.currentUser.name) || 'Figma user',
       appliedAt: new Date().toISOString(),
       changes,
+      remainingDifferences: state.rows.filter((r) => r.status === 'differs' && !names.includes(r.name)).length,
       verification: 'plugin-readback-only',
     };
     send('applied', { receipt });
@@ -153,13 +154,14 @@ async function apply(names, confirmed) {
 figma.ui.onmessage = async (msg) => {
   try {
     if (msg.type === 'init') {
-      const saved = await figma.clientStorage.getAsync('venn.config');
+      let saved = null;
+      try { saved = await figma.clientStorage.getAsync('venn.config'); } catch (e) { /* no saved settings */ }
       const config = Object.assign({}, DEFAULTS, saved || {});
       send('config', { config });
       await check(config);
     } else if (msg.type === 'check') {
       const config = { repo: String(msg.config.repo).trim(), path: String(msg.config.path).trim(), collection: String(msg.config.collection || '') };
-      await figma.clientStorage.setAsync('venn.config', config);
+      try { await figma.clientStorage.setAsync('venn.config', config); } catch (e) { /* settings just won't persist */ }
       await check(config);
     } else if (msg.type === 'apply') {
       await apply(Array.isArray(msg.names) ? msg.names : [], msg.confirmed === true);

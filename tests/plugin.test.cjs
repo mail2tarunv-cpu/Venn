@@ -76,6 +76,7 @@ function setup({ radius = 2, head = SHA, alias = false } = {}) {
   assert.equal(r.sourceSha, SHA);
   assert.equal(r.sourceRepo, 'mail2tarunv-cpu/penny-tokens');
   assert.deepEqual(JSON.parse(JSON.stringify(r.changes)), [{ name: 'radius/button', type: 'number', before: 2, after: 12, readBack: 12 }]);
+  assert.equal(r.remainingDifferences, 1, 'text/primary was left unapplied');
   assert.equal(a.messages.at(-1).type, 'checked', 're-checks after apply');
 
   // Colours are converted and read back.
